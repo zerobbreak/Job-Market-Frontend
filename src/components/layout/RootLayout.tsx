@@ -83,11 +83,11 @@ export default function RootLayout() {
       {/* Desktop Sidebar - Visible on Medium Screens and Up */}
       <aside className="hidden md:flex w-72 flex-col bg-sidebar border-r border-sidebar-border shrink-0 text-sidebar-foreground">
         <div className="p-6 flex items-center gap-3">
-          <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
+          <div className="bg-linear-to-br from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
             <Sparkles className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Job Market
             </h1>
             <p className="text-xs text-muted-foreground">AI Agent</p>
@@ -127,7 +127,7 @@ export default function RootLayout() {
         <div className="p-4 border-t border-sidebar-border mt-auto">
           <div className="bg-sidebar-accent/50 rounded-xl p-4 mb-4 backdrop-blur-md border border-sidebar-border/50">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-inner">
+              <div className="h-10 w-10 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-inner">
                 {user?.name?.[0] || "U"}
               </div>
               <div className="overflow-hidden">
@@ -176,11 +176,11 @@ export default function RootLayout() {
           )}
         >
           <div className="p-6 flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
+            <div className="bg-linear-to-br from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-xl font-bold bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Job Market
               </h1>
               <p className="text-xs text-zinc-400">AI Agent</p>
@@ -221,7 +221,7 @@ export default function RootLayout() {
           <div className="p-4 border-t border-sidebar-border mt-auto">
             <div className="bg-sidebar-accent/50 rounded-xl p-4 mb-4 backdrop-blur-md border border-sidebar-border/50">
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-inner">
+                <div className="h-10 w-10 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-inner">
                   {user?.name?.[0] || "U"}
                 </div>
                 <div className="overflow-hidden">
@@ -251,7 +251,7 @@ export default function RootLayout() {
       <div className="flex-1 flex flex-col min-w-0 bg-background/50">
         <header className="md:hidden h-16 border-b bg-background/80 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-1.5 rounded-lg">
+            <div className="bg-linear-to-br from-blue-600 to-purple-600 p-1.5 rounded-lg">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <span className="font-semibold">Job Market Agent</span>

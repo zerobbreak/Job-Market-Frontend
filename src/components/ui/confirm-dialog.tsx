@@ -1,4 +1,3 @@
-import React from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +50,7 @@ export function ConfirmDialog({
             className={
               variant === "destructive"
                 ? "bg-destructive hover:bg-destructive/90"
-                : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                : "bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             }
           >
             {confirmText}

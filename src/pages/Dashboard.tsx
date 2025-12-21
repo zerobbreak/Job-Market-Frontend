@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Upload,
@@ -20,17 +20,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/toast";
 import { apiClient } from "@/utils/api";
-import { track } from "@/utils/analytics";
 import { useOutletContext } from "react-router-dom";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 
 export default function Dashboard() {
-  const { user } = useAuth();
   const { profile } = useOutletContext<OutletContextType>();
-  const toast = useToast();
   const navigate = useNavigate();
 
   const [cvHealth, setCvHealth] = useState<{
@@ -98,7 +93,7 @@ export default function Dashboard() {
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center animate-fade-in">
         <div className="w-full max-w-md space-y-8">
           <div className="space-y-4">
-            <div className="h-20 w-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20">
+            <div className="h-20 w-20 bg-linear-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20">
               <Sparkles className="h-10 w-10 text-white" />
             </div>
             <h2 className="text-3xl font-bold tracking-tight text-foreground">
@@ -135,7 +130,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -277,7 +272,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between p-6 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl border border-purple-500/20">
+                <div className="flex items-center justify-between p-6 bg-linear-to-br from-purple-500/10 to-blue-500/10 rounded-xl border border-purple-500/20">
                   <div>
                     <p className="text-3xl font-bold text-foreground">
                       {recentMatchesCount}
@@ -291,7 +286,7 @@ export default function Dashboard() {
 
                 <Button
                   onClick={() => navigate("/job-matches")}
-                  className="w-full gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  className="w-full gap-2 bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                   size="lg"
                 >
                   <Briefcase className="h-4 w-4" />

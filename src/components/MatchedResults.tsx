@@ -50,28 +50,12 @@ export default function MatchedResults({
   filteredMatchedJobs,
   minMatchScore,
   setMinMatchScore,
-  useDemoJobs,
-  setUseDemoJobs,
-  location,
-  setLocation,
-  manualTitle,
-  setManualTitle,
-  manualDescription,
-  setManualDescription,
   findMatches,
   handleApply,
 }: {
   filteredMatchedJobs: MatchedJob[];
   minMatchScore: number;
   setMinMatchScore: (v: number) => void;
-  useDemoJobs: boolean;
-  setUseDemoJobs: (v: boolean) => void;
-  location: string;
-  setLocation: (v: string) => void;
-  manualTitle: string;
-  setManualTitle: (v: string) => void;
-  manualDescription: string;
-  setManualDescription: (v: string) => void;
   findMatches: () => void;
   handleApply: (job: Job) => void;
 }) {
@@ -308,7 +292,7 @@ export default function MatchedResults({
                 })()}
                 <Button
                   className={cn(
-                    "gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700",
+                    "gap-2 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700",
                     viewMode === "grid" ? "w-full" : "flex-1"
                   )}
                   onClick={() => handleApply(match.job)}

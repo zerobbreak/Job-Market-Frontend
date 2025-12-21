@@ -90,7 +90,7 @@ export function ProgressBar({
     >
       {indeterminate ? (
         <div
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-[shimmer_2s_infinite]"
+          className="h-full bg-linear-to-r from-blue-500 to-purple-500 animate-[shimmer_2s_infinite]"
           style={{
             width: "40%",
             animation: "shimmer 2s ease-in-out infinite",
@@ -98,7 +98,7 @@ export function ProgressBar({
         />
       ) : (
         <div
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 ease-out"
+          className="h-full bg-linear-to-r from-blue-500 to-purple-500 transition-all duration-300 ease-out"
           style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
         />
       )}
@@ -153,11 +153,7 @@ export function CardSkeleton({ lines = 3, className }: CardSkeletonProps) {
     >
       <Skeleton className="h-6 w-3/4" />
       {Array.from({ length: lines }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className="h-4 w-full"
-          style={{ width: `${100 - i * 10}%` }}
-        />
+        <Skeleton key={i} className="h-4 w-full" />
       ))}
     </div>
   );

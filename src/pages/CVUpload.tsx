@@ -22,15 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import {
-  LoadingSpinner,
-  CardSkeleton,
-  LoadingOverlay,
-} from "@/components/ui/loading";
+import { CardSkeleton } from "@/components/ui/loading";
 import { apiClient } from "@/utils/api";
 import { storage, BUCKET_ID_CVS } from "@/utils/appwrite";
-import { Query } from "appwrite";
-import type { Models } from "appwrite";
+
 import { useOutletContext } from "react-router-dom";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import { track } from "@/utils/analytics";
@@ -46,7 +41,7 @@ interface CVStatus {
 }
 
 export default function CVUpload() {
-  const { profile, setProfile } = useOutletContext<OutletContextType>();
+  const { setProfile } = useOutletContext<OutletContextType>();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -73,23 +68,30 @@ export default function CVUpload() {
   const loadCVList = async () => {
     try {
       setLoading(true);
-      const response = await storage.listFiles(BUCKET_ID_CVS, [
-        Query.orderDesc("$createdAt"),
-      ]);
 
-      const cvStatuses: CVStatus[] = response.files.map(
-        (file: Models.File) => ({
-          fileId: file.$id,
-          filename: file.name,
-          uploadedAt: file.$createdAt,
-          analyzed: !!profile, // If profile exists, assume analyzed
+      // Fetch from database instead of storage to match backend logic
+      const response = await apiClient("/profile/list", {
+        method: "GET",
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.profiles) {
+        const cvStatuses: CVStatus[] = data.profiles.map((prof: any) => ({
+          fileId: prof.cv_file_id || prof.$id,
+          filename: prof.cv_filename || "CV.pdf",
+          uploadedAt: prof.$updatedAt || prof.$createdAt,
+          analyzed: true, // If in database, it's analyzed
           matchingStatus: "idle",
-        })
-      );
+        }));
 
-      setCvList(cvStatuses);
+        setCvList(cvStatuses);
+      } else {
+        setCvList([]);
+      }
     } catch (e) {
       console.error("Error loading CV list:", e);
+      setCvList([]);
     } finally {
       setLoading(false);
     }
@@ -198,8 +200,12 @@ export default function CVUpload() {
 
       const data = await response.json();
 
-      if (data.success) {
-        const matchCount = data.matches?.length || 0;
+      if (data.success && data.matches) {
+        const matchCount = data.matches.length;
+
+        // Save matches to localStorage for the Job Matches page
+        localStorage.setItem("matchedJobs", JSON.stringify(data.matches));
+        localStorage.setItem("matchedJobsLocation", "South Africa");
 
         // Update status to completed
         setCvList((prev) =>
@@ -212,9 +218,14 @@ export default function CVUpload() {
 
         toast.show({
           title: "Matches found!",
-          description: `Found ${matchCount} matching jobs`,
+          description: `Found ${matchCount} matching jobs. Redirecting...`,
           variant: "success",
         });
+
+        // Navigate to job matches page after a short delay
+        setTimeout(() => {
+          navigate("/job-matches");
+        }, 1000);
       } else {
         setCvList((prev) =>
           prev.map((cv) =>
@@ -225,11 +236,13 @@ export default function CVUpload() {
         );
         toast.show({
           title: "Search failed",
-          description: data.error || "Failed to find matches",
+          description:
+            data.error || "Failed to find matches. Please try again.",
           variant: "error",
         });
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Error finding matches:", err);
       setCvList((prev) =>
         prev.map((cv) =>
           cv.fileId === cvStatus.fileId
@@ -293,7 +306,7 @@ export default function CVUpload() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
             CV Upload & Analysis
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -433,7 +446,7 @@ export default function CVUpload() {
                         <Button
                           size="sm"
                           onClick={() => handleFindMatches(cv)}
-                          className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          className="gap-2 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                         >
                           <Search className="h-4 w-4" />
                           Find Matches
