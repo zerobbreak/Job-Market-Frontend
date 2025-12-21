@@ -10,6 +10,8 @@ import JobSearch from "./pages/JobSearch";
 import Applications from "./pages/Applications";
 import Profile from "./pages/Profile";
 import LandingPage from "./pages/LandingPage";
+import CVUpload from "./pages/CVUpload";
+import MatchedJobs from "./pages/MatchedJobs";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -87,6 +89,8 @@ function App() {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/cv-upload" element={<CVUpload />} />
+        <Route path="/job-matches" element={<MatchedJobs />} />
         <Route path="/search" element={<JobSearch />} />
         <Route path="/applications" element={<Applications />} />
         <Route path="/profile" element={<Profile />} />

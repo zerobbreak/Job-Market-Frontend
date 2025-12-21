@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import {
   Search,
@@ -8,12 +8,18 @@ import {
   Menu,
   Sparkles,
   LayoutDashboard,
+  Briefcase,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
-interface Profile {
+export interface Profile {
+  name?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
   skills: string[];
   experience_level: string;
   education: string;
@@ -34,8 +40,39 @@ export default function RootLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
+  // Load profile data when user is authenticated
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) {
+        setProfile(null);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_API_URL || "http://localhost:8000/api"
+          }/profile/structured`,
+          {
+            credentials: "include",
+          }
+        );
+        const data = await response.json();
+        if (data.success && data.profile) {
+          setProfile(data.profile);
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "My CV", href: "/cv-upload", icon: Upload },
+    { name: "Job Matches", href: "/job-matches", icon: Briefcase },
     { name: "Find Jobs", href: "/search", icon: Search },
     { name: "Applications", href: "/applications", icon: FileText },
     { name: "Profile", href: "/profile", icon: User },

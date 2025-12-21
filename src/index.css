@@ -71,11 +71,11 @@
   }
 
   .glass-panel {
-    @apply bg-card/60 backdrop-blur-md border border-white/10 shadow-xl text-foreground supports-[backdrop-filter]:bg-card/40;
+    @apply bg-card/80 backdrop-blur-md border border-white/10 shadow-xl text-foreground supports-[backdrop-filter]:bg-card/60;
   }
 
   .glass-card {
-    @apply bg-card/40 backdrop-blur-sm border border-white/10 hover:bg-card/60 transition-all duration-300 text-foreground;
+    @apply bg-card/60 backdrop-blur-sm border border-white/10 hover:bg-card/80 transition-all duration-300 text-foreground;
   }
 }
 
@@ -129,7 +129,7 @@
 
 .dark {
   /* Dark Theme Palette - Deep & Premium */
-  --background: oklch(0.10 0.03 260); /* Deep Navy/Black */
+  --background: oklch(0.1 0.03 260); /* Deep Navy/Black */
   --foreground: oklch(0.98 0 0); /* Pure White */
 
   --card: oklch(0.14 0.04 260); /* Slightly lighter than background */
