@@ -24,7 +24,6 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CardSkeleton } from "@/components/ui/loading";
 import { apiClient } from "@/utils/api";
-import { storage, BUCKET_ID_CVS } from "@/utils/appwrite";
 
 import { useOutletContext } from "react-router-dom";
 import type { OutletContextType } from "@/components/layout/RootLayout";
@@ -266,7 +265,11 @@ export default function CVUpload() {
     if (!deleteDialog.fileId) return;
 
     try {
-      await storage.deleteFile(BUCKET_ID_CVS, deleteDialog.fileId);
+      // Use backend API to delete both storage file and database record
+      await apiClient(`/profile/${deleteDialog.fileId}`, {
+        method: "DELETE",
+      });
+
       toast.show({
         title: "CV deleted",
         description: "CV has been removed.",
