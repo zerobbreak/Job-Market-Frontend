@@ -14,6 +14,31 @@ interface ApplicationStatusBannerProps {
   onCancel: () => void;
 }
 
+/**
+ * Constructs a download URL for generated files.
+ * Handles both local development and production environments.
+ */
+function getDownloadUrl(filePath: string | undefined | null): string | null {
+  if (!filePath) return null;
+
+  // Get the API base URL, removing trailing /api if present
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  // For production: VITE_API_URL might be https://example.com/api
+  // We need https://example.com as base, then append /api/storage/download...
+  let baseUrl = "http://localhost:8000";
+
+  if (apiUrl && typeof apiUrl === "string") {
+    // Remove trailing /api if present to get the true base URL
+    baseUrl = apiUrl.replace(/\/api\/?$/, "");
+  }
+
+  // Ensure the file path starts with /
+  const normalizedPath = filePath.startsWith("/") ? filePath : `/${filePath}`;
+
+  return `${baseUrl}${normalizedPath}`;
+}
+
 export function ApplicationStatusBanner({
   applying,
   applyAttempts,
@@ -22,6 +47,14 @@ export function ApplicationStatusBanner({
   error,
   onCancel,
 }: ApplicationStatusBannerProps) {
+  // Pre-compute download URLs with null safety
+  const cvUrl = generatedFiles?.cv ? getDownloadUrl(generatedFiles.cv) : null;
+  const coverLetterUrl = generatedFiles?.cover_letter
+    ? getDownloadUrl(generatedFiles.cover_letter)
+    : null;
+  const interviewPrepUrl = generatedFiles?.interview_prep
+    ? getDownloadUrl(generatedFiles.interview_prep)
+    : null;
   return (
     <>
       {error && (
@@ -77,60 +110,55 @@ export function ApplicationStatusBanner({
 
               {/* Download Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <a
-                  href={`${
-                    import.meta.env.VITE_API_URL?.replace(/\/api$/, "") ||
-                    "http://localhost:8000"
-                  }${generatedFiles.cv}`}
-                  download
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                    />
-                  </svg>
-                  Download CV
-                </a>
-
-                <a
-                  href={`${
-                    import.meta.env.VITE_API_URL?.replace(/\/api$/, "") ||
-                    "http://localhost:8000"
-                  }${generatedFiles.cover_letter}`}
-                  download
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors font-medium text-sm"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                    />
-                  </svg>
-                  Download Cover Letter
-                </a>
-
-                {generatedFiles.interview_prep && (
+                {cvUrl && (
                   <a
-                    href={`${
-                      import.meta.env.VITE_API_URL?.replace(/\/api$/, "") ||
-                      "http://localhost:8000"
-                    }${generatedFiles.interview_prep}`}
+                    href={cvUrl}
+                    download
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium text-sm"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                      />
+                    </svg>
+                    Download CV
+                  </a>
+                )}
+
+                {coverLetterUrl && (
+                  <a
+                    href={coverLetterUrl}
+                    download
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors font-medium text-sm"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                      />
+                    </svg>
+                    Download Cover Letter
+                  </a>
+                )}
+
+                {interviewPrepUrl && (
+                  <a
+                    href={interviewPrepUrl}
                     download
                     className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors font-medium text-sm"
                   >

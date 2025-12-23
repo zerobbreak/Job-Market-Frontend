@@ -283,7 +283,7 @@ export default function Profile() {
                   <CVUploader
                     onUpload={handleCVUpload}
                     isUploading={loading}
-                    className="flex-1 min-h-[250px] flex justify-center !border-dashed !border-2"
+                    className="flex-1 min-h-[250px] flex justify-center border-dashed! border-2!"
                   />
                 </div>
               ) : (
@@ -341,7 +341,7 @@ export default function Profile() {
           <Card className="glass-card border-border/60 shadow-md">
             <CardHeader className="pb-4 border-b border-border/40">
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg ring-4 ring-background">
+                <div className="h-16 w-16 bg-linear-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg ring-4 ring-background">
                   <User className="h-8 w-8 text-primary-foreground" />
                 </div>
                 <div>
