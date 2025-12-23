@@ -48,14 +48,25 @@ export function useJobMatching() {
             location,
             count: (data.matches || []).length,
             use_demo: useDemoJobs,
+            cached: data.cached || false,
           },
           "app"
         );
       } else {
-        setError(data.error || "Failed to find matches");
+        // Provide specific error messages
+        if (data.error && data.error.includes("No profile")) {
+          setError("Please upload your CV first to find matching jobs.");
+        } else {
+          setError(data.error || "Failed to find matches");
+        }
       }
-    } catch (err) {
-      setError("Error finding job matches. Please try again.");
+    } catch (err: any) {
+      // Handle network or parsing errors
+      if (err.message && err.message.includes("404")) {
+        setError("Profile not found. Please upload your CV first.");
+      } else {
+        setError("Error finding job matches. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

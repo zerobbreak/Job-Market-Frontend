@@ -1,15 +1,28 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock, Loader2, AlertCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  Mail,
+  Lock,
+  User,
+  Loader2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import AuthLayout from "./layout/AuthLayout";
+import ForgotPasswordModal from "./ForgotPasswordModal";
 
 const Login: React.FC = () => {
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const { login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,25 +31,47 @@ const Login: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      if (isRegisterMode) {
+        await register(email, password, name);
+      } else {
+        await login(email, password);
+      }
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Failed to login");
+      setError(
+        err.message || `Failed to ${isRegisterMode ? "register" : "login"}`
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const toggleMode = () => {
+    setIsRegisterMode(!isRegisterMode);
+    setError("");
+    setName("");
+    setEmail("");
+    setPassword("");
+  };
+
   return (
     <AuthLayout
-      title="Welcome Back"
-      subtitle="Sign in to continue your journey and let AI optimize your job search."
+      title={isRegisterMode ? "Create Account" : "Welcome Back"}
+      subtitle={
+        isRegisterMode
+          ? "Join to start your AI-powered job search and unlock your career potential."
+          : "Sign in to continue your journey and let AI optimize your job search."
+      }
     >
       <div className="bg-white/5 border border-white/10 p-8 rounded-2xl backdrop-blur-xl shadow-xl animate-fade-in">
         <div className="text-center mb-8 animate-slide-up">
-          <h2 className="text-2xl font-bold text-white mb-2">Sign In</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {isRegisterMode ? "Get Started" : "Sign In"}
+          </h2>
           <p className="text-gray-400 text-sm">
-            Enter your credentials to access your account
+            {isRegisterMode
+              ? "Create your free account in seconds"
+              : "Enter your credentials to access your account"}
           </p>
         </div>
 
@@ -48,7 +83,34 @@ const Login: React.FC = () => {
         )}
 
         <form className="space-y-5" onSubmit={handleSubmit}>
-          <div className="animate-slide-up" style={{ animationDelay: "100ms" }}>
+          {isRegisterMode && (
+            <div
+              className="animate-slide-up"
+              style={{ animationDelay: "100ms" }}
+            >
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                Full Name
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  className="block w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-white/20"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <div
+            className="animate-slide-up"
+            style={{ animationDelay: isRegisterMode ? "200ms" : "100ms" }}
+          >
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               Email Address
             </label>
@@ -67,30 +129,47 @@ const Login: React.FC = () => {
             </div>
           </div>
 
-          <div className="animate-slide-up" style={{ animationDelay: "200ms" }}>
+          <div
+            className="animate-slide-up"
+            style={{ animationDelay: isRegisterMode ? "300ms" : "200ms" }}
+          >
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-sm font-medium text-gray-300">
                 Password
               </label>
-              <a
-                href="#"
-                className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                Forgot password?
-              </a>
+              {!isRegisterMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              )}
             </div>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
               </div>
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
-                className="block w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-white/20"
+                className="block w-full pl-10 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all hover:border-white/20"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
             </div>
           </div>
 
@@ -98,10 +177,12 @@ const Login: React.FC = () => {
             type="submit"
             disabled={isSubmitting}
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-blue-600 hover:bg-blue-500 font-semibold shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98] animate-slide-up"
-            style={{ animationDelay: "300ms" }}
+            style={{ animationDelay: isRegisterMode ? "400ms" : "300ms" }}
           >
             {isSubmitting ? (
               <Loader2 className="animate-spin h-5 w-5" />
+            ) : isRegisterMode ? (
+              "Create Account"
             ) : (
               "Sign In"
             )}
@@ -110,19 +191,27 @@ const Login: React.FC = () => {
 
         <div
           className="mt-6 text-center animate-slide-up"
-          style={{ animationDelay: "400ms" }}
+          style={{ animationDelay: isRegisterMode ? "500ms" : "400ms" }}
         >
           <p className="text-sm text-gray-400">
-            Don't have an account?{" "}
-            <Link
-              to="/register"
+            {isRegisterMode
+              ? "Already have an account?"
+              : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={toggleMode}
               className="font-medium text-blue-400 hover:text-blue-300 transition-colors hover:underline"
             >
-              Sign up for free
-            </Link>
+              {isRegisterMode ? "Sign in" : "Sign up for free"}
+            </button>
           </p>
         </div>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+      />
     </AuthLayout>
   );
 };

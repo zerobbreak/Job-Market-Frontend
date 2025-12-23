@@ -1,5 +1,19 @@
 import { useEffect } from "react";
 
+/**
+ * Clear matched jobs cache from localStorage
+ * Call this when a new CV is uploaded to ensure stale data is removed
+ */
+export function clearMatchedJobsCache() {
+  try {
+    localStorage.removeItem("matchedJobs");
+    localStorage.removeItem("matchedJobsLocation");
+    console.log("Cleared matched jobs cache");
+  } catch (e) {
+    console.error("Error clearing matched jobs cache:", e);
+  }
+}
+
 interface MatchedJob {
   job: {
     id: string;

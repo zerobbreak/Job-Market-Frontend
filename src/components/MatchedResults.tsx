@@ -19,6 +19,7 @@ import {
   MapPin,
   Building2,
   TrendingUp,
+  RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -79,36 +80,51 @@ export default function MatchedResults({
           </p>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg border border-border/50">
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          {/* Refresh Button */}
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={() => setViewMode("grid")}
-            className={cn(
-              "gap-2",
-              viewMode === "grid"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+            onClick={findMatches}
+            disabled={isLoading}
+            className="gap-2"
           >
-            <Grid3x3 className="h-4 w-4" />
-            Grid
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            Refresh
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className={cn(
-              "gap-2",
-              viewMode === "list"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <List className="h-4 w-4" />
-            List
-          </Button>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-lg border border-border/50">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "gap-2",
+                viewMode === "grid"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Grid3x3 className="h-4 w-4" />
+              Grid
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "gap-2",
+                viewMode === "list"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <List className="h-4 w-4" />
+              List
+            </Button>
+          </div>
         </div>
       </div>
 

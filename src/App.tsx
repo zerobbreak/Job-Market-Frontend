@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import Login from "./components/Login";
 import Register from "./components/Register";
+import ResetPassword from "./components/ResetPassword";
 import RootLayout from "./components/layout/RootLayout";
 import Dashboard from "./pages/Dashboard";
 import JobSearch from "./pages/JobSearch";
@@ -76,6 +77,14 @@ function App() {
         element={
           <PublicOnly>
             <Register />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <PublicOnly>
+            <ResetPassword />
           </PublicOnly>
         }
       />

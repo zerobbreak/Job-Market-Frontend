@@ -28,6 +28,7 @@ import { apiClient } from "@/utils/api";
 import { useOutletContext } from "react-router-dom";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import { track } from "@/utils/analytics";
+import { clearMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
 
 interface CVStatus {
   fileId: string;
@@ -132,6 +133,10 @@ export default function CVUpload() {
 
       if (data.success) {
         setProfile(data.profile);
+
+        // Clear matched jobs cache to prevent showing stale results
+        clearMatchedJobsCache();
+
         track("cv_uploaded", { filename: file.name }, "cv_upload");
         toast.show({
           title: "CV analyzed",
