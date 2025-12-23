@@ -1,8 +1,54 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { apiClient } from "@/utils/api";
 import { useToast } from "@/components/ui/toast";
 import { track } from "@/utils/analytics";
 import type { Job } from "./useJobMatching";
+
+const GENERATED_FILES_STORAGE_KEY = "generatedApplicationFiles";
+
+interface GeneratedFiles {
+  cv: string;
+  cover_letter: string;
+  interview_prep?: string;
+  jobId?: string;
+  jobTitle?: string;
+  generatedAt?: string;
+}
+
+function loadGeneratedFilesFromStorage(): GeneratedFiles | null {
+  try {
+    const stored = localStorage.getItem(GENERATED_FILES_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Check if files were generated within the last 24 hours
+      if (parsed.generatedAt) {
+        const generatedTime = new Date(parsed.generatedAt).getTime();
+        const now = Date.now();
+        const hoursSinceGenerated = (now - generatedTime) / (1000 * 60 * 60);
+        if (hoursSinceGenerated < 24) {
+          return parsed;
+        }
+        // Expired, clear it
+        localStorage.removeItem(GENERATED_FILES_STORAGE_KEY);
+      }
+    }
+  } catch (e) {
+    console.error("Error loading generated files from storage:", e);
+  }
+  return null;
+}
+
+function saveGeneratedFilesToStorage(files: GeneratedFiles | null) {
+  try {
+    if (files) {
+      localStorage.setItem(GENERATED_FILES_STORAGE_KEY, JSON.stringify(files));
+    } else {
+      localStorage.removeItem(GENERATED_FILES_STORAGE_KEY);
+    }
+  } catch (e) {
+    console.error("Error saving generated files to storage:", e);
+  }
+}
 
 export function useJobApplication() {
   const toast = useToast();
@@ -19,12 +65,15 @@ export function useJobApplication() {
   const [applyTemplate, setApplyTemplate] = useState<
     "MODERN" | "PROFESSIONAL" | "ACADEMIC"
   >("MODERN");
-  const [generatedFiles, setGeneratedFiles] = useState<{
-    cv: string;
-    cover_letter: string;
-    interview_prep?: string;
-  } | null>(null);
+  const [generatedFiles, setGeneratedFiles] = useState<GeneratedFiles | null>(
+    () => loadGeneratedFilesFromStorage()
+  );
   const [error, setError] = useState<string>("");
+
+  // Persist generatedFiles to localStorage whenever it changes
+  useEffect(() => {
+    saveGeneratedFilesToStorage(generatedFiles);
+  }, [generatedFiles]);
 
   const handleApply = (job: Job) => {
     setPendingJob(job);
@@ -71,6 +120,9 @@ export function useJobApplication() {
             cv: statusData.files.cv,
             cover_letter: statusData.files.cover_letter,
             interview_prep: statusData.files.interview_prep,
+            jobId: pendingJob.id,
+            jobTitle: pendingJob.title,
+            generatedAt: new Date().toISOString(),
           });
           track(
             "apply_complete",

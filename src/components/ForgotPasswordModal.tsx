@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Mail, X, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { account } from "../utils/appwrite";
 
@@ -15,9 +15,42 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    // Check for active cooldown on mount
+    const cooldownEnd = localStorage.getItem("resetPasswordCooldown");
+    if (cooldownEnd) {
+      const remaining = Math.ceil((parseInt(cooldownEnd) - Date.now()) / 1000);
+      if (remaining > 0) {
+        setCooldown(remaining);
+      } else {
+        localStorage.removeItem("resetPasswordCooldown");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Timer interval
+    if (cooldown > 0) {
+      const interval = setInterval(() => {
+        setCooldown((current) => {
+          if (current <= 1) {
+            clearInterval(interval);
+            localStorage.removeItem("resetPasswordCooldown");
+            return 0;
+          }
+          return current - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [cooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (cooldown > 0) return;
+
     setError("");
     setIsSubmitting(true);
 
@@ -27,8 +60,17 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         email,
         `${window.location.origin}/reset-password`
       );
+
       setSuccess(true);
       setEmail("");
+
+      // Set 60s cooldown
+      const cooldownTime = 60;
+      setCooldown(cooldownTime);
+      localStorage.setItem(
+        "resetPasswordCooldown",
+        (Date.now() + cooldownTime * 1000).toString()
+      );
     } catch (err: any) {
       setError(err.message || "Failed to send recovery email");
     } finally {
@@ -37,6 +79,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   };
 
   const handleClose = () => {
+    // Don't clear cooldown on close, only other states
     setEmail("");
     setError("");
     setSuccess(false);
@@ -54,7 +97,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 border border-white/10 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+      <div className="relative bg-linear-to-br from-gray-900 to-gray-800 border border-white/10 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
         {/* Close button */}
         <button
           onClick={handleClose}
@@ -76,12 +119,19 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
               Please check your inbox and follow the link to reset your
               password.
             </p>
-            <button
-              onClick={handleClose}
-              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Got it
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handleClose}
+                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Got it
+              </button>
+              {cooldown > 0 && (
+                <p className="text-xs text-gray-500">
+                  You can request another email in {cooldown}s
+                </p>
+              )}
+            </div>
           </div>
         ) : (
           <>
@@ -132,11 +182,13 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || cooldown > 0}
                   className="flex-1 py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center"
                 >
                   {isSubmitting ? (
                     <Loader2 className="animate-spin h-5 w-5" />
+                  ) : cooldown > 0 ? (
+                    `Resend in ${cooldown}s`
                   ) : (
                     "Send Reset Link"
                   )}

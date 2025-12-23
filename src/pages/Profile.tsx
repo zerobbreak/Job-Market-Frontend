@@ -27,8 +27,6 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/components/ui/toast";
 import { apiClient } from "@/utils/api";
 import { track } from "@/utils/analytics";
-import { storage, BUCKET_ID_CVS } from "@/utils/appwrite";
-import { Query } from "appwrite";
 import type { Models } from "appwrite";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import { CVUploader } from "@/components/profile/CVUploader";
@@ -53,12 +51,25 @@ export default function Profile() {
   const fetchFiles = async () => {
     try {
       setFileLoading(true);
-      const response = await storage.listFiles(BUCKET_ID_CVS, [
-        Query.orderDesc("$createdAt"),
-      ]);
-      setFiles(response.files);
+      // Use authenticated API endpoint that filters by user ID
+      const response = await apiClient("/profile/list");
+      const data = await response.json();
+
+      if (data.success && data.profiles) {
+        // Map API response to Models.File-like format for CVList component
+        const mappedFiles = data.profiles.map((profile: any) => ({
+          $id: profile.cv_file_id,
+          name: profile.cv_filename || "CV.pdf",
+          $createdAt: profile.$createdAt,
+          $updatedAt: profile.$updatedAt,
+        }));
+        setFiles(mappedFiles);
+      } else {
+        setFiles([]);
+      }
     } catch (error) {
       console.error("Error fetching files:", error);
+      setFiles([]);
     } finally {
       setFileLoading(false);
     }
@@ -66,13 +77,22 @@ export default function Profile() {
 
   const handleDeleteFile = async (fileId: string) => {
     try {
-      await storage.deleteFile(BUCKET_ID_CVS, fileId);
-      toast.show({
-        title: "File deleted",
-        description: "CV has been removed.",
-        variant: "success",
+      // Use authenticated API endpoint for deletion
+      const response = await apiClient(`/profile/${fileId}`, {
+        method: "DELETE",
       });
-      fetchFiles(); // refresh list
+      const data = await response.json();
+
+      if (data.success) {
+        toast.show({
+          title: "File deleted",
+          description: "CV has been removed.",
+          variant: "success",
+        });
+        fetchFiles(); // refresh list
+      } else {
+        throw new Error(data.error || "Delete failed");
+      }
     } catch (error) {
       console.error("Error deleting file:", error);
       toast.show({
