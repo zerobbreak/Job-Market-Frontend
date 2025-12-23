@@ -9,7 +9,6 @@ import { MatchedJobsHeader } from "@/components/matched-jobs/MatchedJobsHeader";
 import { ApplicationStatusBanner } from "@/components/matched-jobs/ApplicationStatusBanner";
 import { TemplateSelectionDialog } from "@/components/matched-jobs/TemplateSelectionDialog";
 import { EmptyState } from "@/components/matched-jobs/EmptyState";
-import { LoadingState } from "@/components/matched-jobs/LoadingState";
 
 // Import MatchedResults lazily as done in Dashboard
 const MatchedResults = React.lazy(() => import("@/components/MatchedResults"));
@@ -69,11 +68,9 @@ export default function MatchedJobs() {
 
       {/* Results Area */}
       <div className="min-h-[400px]">
-        {loading && <LoadingState />}
-
         {!loading && matchedJobs.length === 0 && <EmptyState />}
 
-        {matchedJobs.length > 0 && (
+        {(loading || matchedJobs.length > 0) && (
           <Suspense
             fallback={
               <div className="flex items-center justify-center h-40">
@@ -87,6 +84,7 @@ export default function MatchedJobs() {
               setMinMatchScore={setMinMatchScore}
               findMatches={findMatches}
               handleApply={handleApply}
+              isLoading={loading}
             />
           </Suspense>
         )}

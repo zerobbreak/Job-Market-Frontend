@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { JobCardSkeleton } from "@/components/matched-jobs/JobCardSkeleton";
 
 type Job = {
   id: string;
@@ -52,12 +53,14 @@ export default function MatchedResults({
   setMinMatchScore,
   findMatches,
   handleApply,
+  isLoading = false,
 }: {
   filteredMatchedJobs: MatchedJob[];
   minMatchScore: number;
   setMinMatchScore: (v: number) => void;
   findMatches: () => void;
   handleApply: (job: Job) => void;
+  isLoading?: boolean;
 }) {
   const toast = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -134,7 +137,20 @@ export default function MatchedResults({
       </Card>
 
       {/* Job Results */}
-      {filteredMatchedJobs.length === 0 ? (
+      {isLoading ? (
+        <div
+          className={cn(
+            "gap-6",
+            viewMode === "grid"
+              ? "grid md:grid-cols-2 lg:grid-cols-3"
+              : "grid gap-4"
+          )}
+        >
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <JobCardSkeleton key={idx} viewMode={viewMode} />
+          ))}
+        </div>
+      ) : filteredMatchedJobs.length === 0 ? (
         <div className="text-center py-20 bg-muted/30 rounded-2xl border border-border">
           <div className="max-w-md mx-auto space-y-4">
             <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mx-auto">
