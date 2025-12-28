@@ -1,7 +1,9 @@
 import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { ErrorBoundary } from "./components/ui/error-boundary";
 import { useAuth } from "./context/AuthContext";
+import GuestRoute from "./components/layout/GuestRoute";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import ResetPassword from "./components/ResetPassword";
@@ -34,58 +36,41 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-function PublicOnly({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0A0F1C]">
-        <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-      </div>
-    );
-  }
-
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return children;
-}
-
 function App() {
   return (
-    <Routes>
-      {/* Public Routes */}
+    <ErrorBoundary>
+      <Routes>
+        {/* Public Routes */}
       <Route
         path="/"
         element={
-          <PublicOnly>
+          <GuestRoute>
             <LandingPage />
-          </PublicOnly>
+          </GuestRoute>
         }
       />
       <Route
         path="/login"
         element={
-          <PublicOnly>
+          <GuestRoute>
             <Login />
-          </PublicOnly>
+          </GuestRoute>
         }
       />
       <Route
         path="/register"
         element={
-          <PublicOnly>
+          <GuestRoute>
             <Register />
-          </PublicOnly>
+          </GuestRoute>
         }
       />
       <Route
         path="/reset-password"
         element={
-          <PublicOnly>
+          <GuestRoute>
             <ResetPassword />
-          </PublicOnly>
+          </GuestRoute>
         }
       />
 
@@ -108,6 +93,7 @@ function App() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </ErrorBoundary>
   );
 }
 

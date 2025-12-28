@@ -1,5 +1,3 @@
-import React, { Suspense } from "react";
-import { Loader2 } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import { useJobMatching } from "@/hooks/useJobMatching";
@@ -8,10 +6,10 @@ import { useMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
 import { MatchedJobsHeader } from "@/components/matched-jobs/MatchedJobsHeader";
 import { ApplicationStatusBanner } from "@/components/matched-jobs/ApplicationStatusBanner";
 import { TemplateSelectionDialog } from "@/components/matched-jobs/TemplateSelectionDialog";
+import { ApplicationPreviewDialog } from "@/components/matched-jobs/ApplicationPreviewDialog";
 import { EmptyState } from "@/components/matched-jobs/EmptyState";
-
-// Import MatchedResults lazily as done in Dashboard
-const MatchedResults = React.lazy(() => import("@/components/MatchedResults"));
+import MatchedResults from "@/components/MatchedResults";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function MatchedJobs() {
   const { profile } = useOutletContext<OutletContextType>();
@@ -42,6 +40,16 @@ export default function MatchedJobs() {
     handleApply,
     confirmApply,
     handleCancelApply,
+    pendingJob,
+    showPreviewDialog,
+    setShowPreviewDialog,
+    previewLoading,
+    previewProgress,
+    previewData,
+    initiatePreview,
+    handleAutoApply,
+    isAutoApplying,
+    automationStatus
   } = useJobApplication();
 
   // Cache management
@@ -67,17 +75,11 @@ export default function MatchedJobs() {
       />
 
       {/* Results Area */}
+      <ErrorBoundary>
       <div className="min-h-[400px]">
         {!loading && matchedJobs.length === 0 && <EmptyState />}
 
         {(loading || matchedJobs.length > 0) && (
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-              </div>
-            }
-          >
             <MatchedResults
               filteredMatchedJobs={filteredMatchedJobs}
               minMatchScore={minMatchScore}
@@ -86,16 +88,50 @@ export default function MatchedJobs() {
               handleApply={handleApply}
               isLoading={loading}
             />
-          </Suspense>
         )}
       </div>
+      </ErrorBoundary>
 
       <TemplateSelectionDialog
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
         template={applyTemplate}
         onTemplateChange={setApplyTemplate}
+        onConfirm={initiatePreview}
+      />
+
+      <ApplicationPreviewDialog
+        open={showPreviewDialog}
+        onOpenChange={setShowPreviewDialog}
+        loading={previewLoading}
+        progress={previewProgress}
+        jobUrl={pendingJob?.url}
+        jobTitle={pendingJob?.title}
+        company={pendingJob?.company}
+        autoFillData={[
+          `Full Name: ${profile?.name || ""}`,
+          `Email: ${profile?.email || ""}`,
+          `Phone: ${profile?.phone || ""}`,
+          `Location: ${profile?.location || ""}`,
+          `Role: ${pendingJob?.title || ""}`,
+          `Company: ${pendingJob?.company || ""}`,
+          `Job Location: ${pendingJob?.location || ""}`,
+          ...(Array.isArray(profile?.skills)
+            ? [`Skills: ${(profile?.skills || []).slice(0, 10).join(", ")}`]
+            : []),
+        ].join("\n")}
+        cvHtml={previewData?.cvHtml || ""}
+        coverLetterHtml={previewData?.coverLetterHtml || ""}
+        atsScore={previewData?.atsScore}
+        atsAnalysis={previewData?.atsAnalysis}
+        error={applicationError}
         onConfirm={confirmApply}
+        onCancel={() => setShowPreviewDialog(false)}
+        onAutoApply={handleAutoApply}
+        onRetry={initiatePreview}
+        isAutoApplying={isAutoApplying}
+        automationStatus={automationStatus}
+        previewJobId={previewData?.jobId}
       />
     </div>
   );

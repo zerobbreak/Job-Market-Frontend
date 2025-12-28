@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { apiClient } from "@/utils/api";
 import { cn } from "@/lib/utils";
 
 export interface Profile {
@@ -49,14 +50,10 @@ export default function RootLayout() {
       }
 
       try {
-        const response = await fetch(
-          `${
-            import.meta.env.VITE_API_URL || "http://localhost:8000/api"
-          }/profile/structured`,
-          {
-            credentials: "include",
-          }
-        );
+        const response = await apiClient("/profile/structured");
+        
+        // Response status check is handled inside apiClient (throws on 401)
+        
         const data = await response.json();
         if (data.success && data.profile) {
           setProfile(data.profile);

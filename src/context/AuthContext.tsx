@@ -26,6 +26,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         checkUserStatus();
+        
+        const handleAuthFailure = () => {
+            logout();
+        };
+
+        window.addEventListener('auth:failure', handleAuthFailure);
+        return () => window.removeEventListener('auth:failure', handleAuthFailure);
     }, []);
 
     const checkUserStatus = async () => {

@@ -10,9 +10,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { FileText, Upload, Sparkles, ExternalLink } from "lucide-react";
+import { FileText, Upload, Sparkles, ExternalLink, LayoutGrid, List as ListIcon } from "lucide-react";
 import { track } from "@/utils/analytics";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { apiClient } from "@/utils/api";
 
 type Application = {
   id: string;
@@ -58,6 +60,9 @@ export default function ApplicationsList({
 }) {
   const toast = useToast();
   const [page, setPage] = React.useState(serverPage ?? 1);
+  const [viewMode, setViewMode] = React.useState<"list" | "board">("list");
+  const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
+
   React.useEffect(() => {
     if (serverPage) setPage(serverPage);
   }, [serverPage]);
@@ -74,6 +79,84 @@ export default function ApplicationsList({
   const [sortBy, setSortBy] = React.useState<
     "date_desc" | "date_asc" | "company" | "title"
   >("date_desc");
+
+  // Helper to download files using signed URLs (Industry Standard - AWS S3/Cloudflare R2 Pattern)
+  const handleDownload = async (fileUrl: string | undefined, fileName: string) => {
+    if (!fileUrl) {
+      toast.show({
+        title: "Error",
+        description: "File URL is missing",
+        variant: "error",
+      });
+      return;
+    }
+
+    try {
+      setDownloadingId(fileUrl);
+      
+      // Extract bucket_id and file_id from URL
+      // Format: /api/storage/download?bucket_id=xxx&file_id=yyy
+      const urlObj = new URL(fileUrl, window.location.origin);
+      const bucketId = urlObj.searchParams.get('bucket_id');
+      const fileId = urlObj.searchParams.get('file_id');
+      
+      if (!bucketId || !fileId) {
+        // Fallback to old method if URL format is unexpected
+        const endpoint = fileUrl.replace(/^\/api/, '');
+        const response = await apiClient(endpoint);
+        
+        if (!response.ok) {
+          throw new Error("Download failed");
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        // Generate signed URL (Industry Standard)
+        const signedUrlResponse = await apiClient('/files/signed-url', {
+          method: 'POST',
+          body: JSON.stringify({
+            file_id: fileId,
+            bucket_id: bucketId,
+            file_type: 'storage',
+            expires_in: 3600 // 1 hour
+          })
+        });
+        
+        if (!signedUrlResponse.ok) {
+          const errorData = await signedUrlResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to generate download URL");
+        }
+        
+        const { url: signedUrl } = await signedUrlResponse.json();
+        
+        // Use signed URL for direct download (no authentication headers needed)
+        window.location.href = signedUrl;
+      }
+      
+      toast.show({
+        title: "Success",
+        description: "File download started",
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.show({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to download file. Please try again.",
+        variant: "error",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   // 1. Filter first
   const filtered = localApps.filter((a) => {
@@ -99,18 +182,150 @@ export default function ApplicationsList({
   });
 
   // 3. Paginate
-  // If server-side pagination is active, we assume 'sorted' is just the current page (and server handles sort/filter properly?
-  // actually usually server handles it all. If serverTotalPages is set, we shouldn't act like we have all data locally to filter/sort effectively
-  // unless we just filter the current page. But for this fix, we assume client-side if serverTotalPages is missing.)
-
   const totalPages =
     serverTotalPages ?? Math.max(1, Math.ceil(sorted.length / 10));
   const start = serverTotalPages ? 0 : (page - 1) * 10;
   const visible = serverTotalPages ? sorted : sorted.slice(start, start + 10);
 
+  // Status update handler
+  const handleStatusUpdate = async (id: string, newStatus: Application["status"]) => {
+    try {
+      const res = await fetch(
+        `${API_ORIGIN}/applications/${id}/status`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || data.success === false)
+        throw new Error(
+          data.error || "Status update failed"
+        );
+      setLocalApps((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? { ...a, status: newStatus }
+            : a
+        )
+      );
+      toast.show({
+        title: "Updated",
+        description: "Application status updated",
+      });
+      track(
+        "application_status_changed",
+        {
+          applicationId: id,
+          status: newStatus,
+        },
+        "applications"
+      );
+    } catch (err) {
+      toast.show({
+        title: "Error",
+        description: "Could not update status",
+        variant: "error",
+      });
+    }
+  };
+
+  const KanbanColumn = ({
+    title,
+    apps,
+  }: {
+    title: string;
+    apps: Application[];
+  }) => (
+    <div className="flex flex-col h-full bg-muted/30 rounded-lg border border-border/50">
+      <div className="p-3 border-b border-border/50 flex justify-between items-center bg-muted/50 rounded-t-lg">
+        <h3 className="font-medium text-sm flex items-center gap-2">
+          {title}
+          <Badge variant="secondary" className="text-xs px-1.5 h-5 min-w-[1.25rem]">
+            {apps.length}
+          </Badge>
+        </h3>
+      </div>
+      <ScrollArea className="flex-1 p-3">
+        <div className="space-y-3">
+          {apps.map((app) => (
+            <Card key={app.id} className="bg-card shadow-sm hover:shadow-md transition-shadow border-border/60">
+              <CardHeader className="p-3 pb-2 space-y-1">
+                <div className="flex justify-between items-start gap-2">
+                  <h4 className="font-semibold text-sm leading-tight line-clamp-2">
+                    {app.jobTitle}
+                  </h4>
+                  <select
+                    value={app.status}
+                    onChange={(e) => handleStatusUpdate(app.id, e.target.value as Application["status"])}
+                    className="h-6 w-24 rounded-md border border-border bg-card text-foreground px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="applied">Applied</option>
+                    <option value="interview">Interview</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{app.company}</p>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                 <div className="text-xs text-muted-foreground mb-2">
+                   {app.location}
+                 </div>
+                 <div className="flex gap-1 justify-end">
+                    {app.jobUrl && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => window.open(app.jobUrl, '_blank')}
+                            title="View Job"
+                        >
+                            <ExternalLink className="h-3 w-3" />
+                        </Button>
+                    )}
+                 </div>
+              </CardContent>
+            </Card>
+          ))}
+          {apps.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground text-xs border-2 border-dashed border-border/50 rounded-md">
+              No applications
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
   return (
     <>
-      <h2 className="text-2xl font-bold text-foreground">Your Applications</h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <h2 className="text-2xl font-bold text-foreground">Your Applications</h2>
+        <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50">
+            <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="h-8 text-xs"
+            >
+                <ListIcon className="h-3.5 w-3.5 mr-2" />
+                List
+            </Button>
+            <Button
+                variant={viewMode === "board" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("board")}
+                className="h-8 text-xs"
+            >
+                <LayoutGrid className="h-3.5 w-3.5 mr-2" />
+                Board
+            </Button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <div>
           <Input
@@ -124,47 +339,73 @@ export default function ApplicationsList({
             aria-label="Search applications"
           />
         </div>
-        <div>
-          <select
-            value={filterStatus}
-            onChange={(e) => {
-              const v = e.target.value;
-              setFilterStatus(v);
-              track(
-                "applications_filter_status",
-                { status: v || "all" },
-                "applications"
-              );
-            }}
-            className="w-full h-10 rounded-md border border-border bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="Filter by status"
-          >
-            <option value="">All statuses</option>
-            <option value="applied">Applied</option>
-            <option value="interview">Interview</option>
-            <option value="rejected">Rejected</option>
-            <option value="pending">Pending</option>
-          </select>
-        </div>
-        <div>
-          <select
-            value={sortBy}
-            onChange={(e) => {
-              const v = e.target.value as typeof sortBy;
-              setSortBy(v);
-              track("applications_sort", { sortBy: v }, "applications");
-            }}
-            className="w-full h-10 rounded-md border border-border bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="Sort applications"
-          >
-            <option value="date_desc">Newest first</option>
-            <option value="date_asc">Oldest first</option>
-            <option value="company">Company</option>
-            <option value="title">Job Title</option>
-          </select>
-        </div>
+        {viewMode === "list" && (
+            <>
+                <div>
+                <select
+                    value={filterStatus}
+                    onChange={(e) => {
+                    const v = e.target.value;
+                    setFilterStatus(v);
+                    track(
+                        "applications_filter_status",
+                        { status: v || "all" },
+                        "applications"
+                    );
+                    }}
+                    className="w-full h-10 rounded-md border border-border bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Filter by status"
+                >
+                    <option value="">All statuses</option>
+                    <option value="applied">Applied</option>
+                    <option value="interview">Interview</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="pending">Pending</option>
+                </select>
+                </div>
+                <div>
+                <select
+                    value={sortBy}
+                    onChange={(e) => {
+                    const v = e.target.value as typeof sortBy;
+                    setSortBy(v);
+                    track("applications_sort", { sortBy: v }, "applications");
+                    }}
+                    className="w-full h-10 rounded-md border border-border bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Sort applications"
+                >
+                    <option value="date_desc">Newest first</option>
+                    <option value="date_asc">Oldest first</option>
+                    <option value="company">Company</option>
+                    <option value="title">Job Title</option>
+                </select>
+                </div>
+            </>
+        )}
       </div>
-      {applications.length === 0 ? (
+
+      {viewMode === "board" ? (
+         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[calc(100vh-250px)] min-h-[500px]">
+            <KanbanColumn
+                title="Pending"
+                apps={filtered.filter(a => a.status === 'pending')}
+            />
+            <KanbanColumn
+                title="Applied"
+                apps={filtered.filter(a => a.status === 'applied')}
+            />
+            <KanbanColumn
+                title="Interview"
+                apps={filtered.filter(a => a.status === 'interview')}
+            />
+             <KanbanColumn
+                title="Rejected"
+                apps={filtered.filter(a => a.status === 'rejected')}
+            />
+         </div>
+      ) : (
+        /* LIST VIEW (Existing) */
+        applications.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -199,50 +440,7 @@ export default function ApplicationsList({
                     </Badge>
                     <select
                       value={application.status}
-                      onChange={async (e) => {
-                        const newStatus = e.target
-                          .value as Application["status"];
-                        try {
-                          const res = await fetch(
-                            `${API_ORIGIN}/applications/${application.id}/status`,
-                            {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ status: newStatus }),
-                            }
-                          );
-                          const data = await res.json();
-                          if (!res.ok || data.success === false)
-                            throw new Error(
-                              data.error || "Status update failed"
-                            );
-                          setLocalApps((prev) =>
-                            prev.map((a) =>
-                              a.id === application.id
-                                ? { ...a, status: newStatus }
-                                : a
-                            )
-                          );
-                          toast.show({
-                            title: "Updated",
-                            description: "Application status updated",
-                          });
-                          track(
-                            "application_status_changed",
-                            {
-                              applicationId: application.id,
-                              status: newStatus,
-                            },
-                            "applications"
-                          );
-                        } catch (err) {
-                          toast.show({
-                            title: "Error",
-                            description: "Could not update status",
-                            variant: "error",
-                          });
-                        }
-                      }}
+                      onChange={(e) => handleStatusUpdate(application.id, e.target.value as Application["status"])}
                       className="h-8 rounded-md border border-border bg-card text-foreground px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="applied">Applied</option>
@@ -256,67 +454,82 @@ export default function ApplicationsList({
               {application.files && (
                 <CardContent>
                   <div className="grid sm:grid-cols-3 gap-3">
-                    <a
-                      href={`${API_ORIGIN}${application.files.cv}`}
-                      download
-                      className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-colors"
-                      onClick={() =>
+                    <Button
+                      variant="outline"
+                      className="flex items-center justify-between p-3 h-auto bg-blue-500/10 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-colors"
+                      disabled={downloadingId === application.files.cv}
+                      onClick={() => {
                         track(
                           "file_download_cv",
                           { applicationId: application.id },
                           "applications"
-                        )
-                      }
+                        );
+                        handleDownload(application.files!.cv, `CV-${application.company}-${application.jobTitle}.pdf`);
+                      }}
                     >
                       <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-blue-400 mr-3" />
+                        {downloadingId === application.files.cv ? (
+                           <span className="h-5 w-5 mr-3 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                        ) : (
+                           <FileText className="h-5 w-5 text-blue-400 mr-3" />
+                        )}
                         <span className="font-medium text-blue-300">
                           Tailored CV
                         </span>
                       </div>
                       <Upload className="h-4 w-4 text-blue-400 rotate-180" />
-                    </a>
-                    <a
-                      href={`${API_ORIGIN}${application.files.cover_letter}`}
-                      download
-                      className="flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg hover:bg-purple-500/20 transition-colors"
-                      onClick={() =>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center justify-between p-3 h-auto bg-purple-500/10 border border-purple-500/20 rounded-lg hover:bg-purple-500/20 transition-colors"
+                      disabled={downloadingId === application.files.cover_letter}
+                      onClick={() => {
                         track(
                           "file_download_cover_letter",
                           { applicationId: application.id },
                           "applications"
-                        )
-                      }
+                        );
+                         handleDownload(application.files!.cover_letter, `CoverLetter-${application.company}.txt`);
+                      }}
                     >
                       <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-purple-400 mr-3" />
+                         {downloadingId === application.files.cover_letter ? (
+                           <span className="h-5 w-5 mr-3 animate-spin rounded-full border-2 border-purple-400 border-t-transparent" />
+                        ) : (
+                           <FileText className="h-5 w-5 text-purple-400 mr-3" />
+                        )}
                         <span className="font-medium text-purple-300">
                           Cover Letter
                         </span>
                       </div>
                       <Upload className="h-4 w-4 text-purple-400 rotate-180" />
-                    </a>
+                    </Button>
                     {application.files.interview_prep && (
-                      <a
-                        href={`${API_ORIGIN}${application.files.interview_prep}`}
-                        download
-                        className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg hover:bg-green-500/20 transition-colors"
-                        onClick={() =>
+                      <Button
+                        variant="outline"
+                        className="flex items-center justify-between p-3 h-auto bg-green-500/10 border border-green-500/20 rounded-lg hover:bg-green-500/20 transition-colors"
+                        disabled={downloadingId === application.files.interview_prep}
+                        onClick={() => {
                           track(
                             "file_download_interview_prep",
                             { applicationId: application.id },
                             "applications"
-                          )
-                        }
+                          );
+                          handleDownload(application.files!.interview_prep!, `InterviewPrep-${application.company}.txt`);
+                        }}
                       >
                         <div className="flex items-center">
-                          <Sparkles className="h-5 w-5 text-green-400 mr-3" />
+                          {downloadingId === application.files.interview_prep ? (
+                             <span className="h-5 w-5 mr-3 animate-spin rounded-full border-2 border-green-400 border-t-transparent" />
+                          ) : (
+                             <Sparkles className="h-5 w-5 text-green-400 mr-3" />
+                          )}
                           <span className="font-medium text-green-300">
                             Interview Prep
                           </span>
                         </div>
                         <Upload className="h-4 w-4 text-green-400 rotate-180" />
-                      </a>
+                      </Button>
                     )}
                   </div>
                 </CardContent>
@@ -415,6 +628,7 @@ export default function ApplicationsList({
             </div>
           </div>
         </div>
+      )
       )}
     </>
   );

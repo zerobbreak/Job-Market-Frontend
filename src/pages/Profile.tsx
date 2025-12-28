@@ -31,6 +31,7 @@ import type { Models } from "appwrite";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import { CVUploader } from "@/components/profile/CVUploader";
 import { CVList } from "@/components/profile/CVList";
+import { TagInput } from "@/components/ui/tag-input";
 
 export default function Profile() {
   const { profile, setProfile } = useOutletContext<OutletContextType>();
@@ -119,6 +120,13 @@ export default function Profile() {
       notification_threshold: 70,
     }
   );
+
+  // Sync local state with profile when it loads asynchronously
+  useEffect(() => {
+    if (profile && !isEditing) {
+      setEditForm(profile);
+    }
+  }, [profile, isEditing]);
 
   const handleSaveProfile = async () => {
     if (!editForm) return;
@@ -539,17 +547,12 @@ export default function Profile() {
                   Key Strengths
                 </h4>
                 {isEditing ? (
-                  <Textarea
-                    value={editForm.strengths.join(", ")}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        strengths: e.target.value
-                          .split(",")
-                          .map((s) => s.trim()),
-                      })
+                  <TagInput
+                    tags={editForm.strengths}
+                    setTags={(newTags) =>
+                      setEditForm({ ...editForm, strengths: newTags })
                     }
-                    placeholder="Leadership, Communication..."
+                    placeholder="Add a strength (e.g. Leadership)"
                   />
                 ) : (
                   <ul className="space-y-2">
