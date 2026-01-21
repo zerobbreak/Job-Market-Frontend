@@ -15,6 +15,8 @@ import Profile from "./pages/Profile";
 import LandingPage from "./pages/LandingPage";
 import CVUpload from "./pages/CVUpload";
 import MatchedJobs from "./pages/MatchedJobs";
+import CVEditor from "./pages/CVEditor";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -88,6 +90,8 @@ function App() {
         <Route path="/search" element={<JobSearch />} />
         <Route path="/applications" element={<Applications />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/cv-editor" element={<CVEditor />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Route>
 
       {/* Fallback */}

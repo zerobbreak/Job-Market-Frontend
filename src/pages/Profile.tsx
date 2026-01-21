@@ -53,13 +53,14 @@ export default function Profile() {
     try {
       setFileLoading(true);
       // Use authenticated API endpoint that filters by user ID
-      const response = await apiClient("/profile/list");
+      // Backend route is /api/list (no /profile prefix)
+      const response = await apiClient("/list");
       const data = await response.json();
 
       if (data.success && data.profiles) {
         // Map API response to Models.File-like format for CVList component
         const mappedFiles = data.profiles.map((profile: any) => ({
-          $id: profile.cv_file_id,
+          $id: profile.$id, // Use Profile ID, not File ID, for deletion to work
           name: profile.cv_filename || "CV.pdf",
           $createdAt: profile.$createdAt,
           $updatedAt: profile.$updatedAt,
@@ -138,9 +139,45 @@ export default function Profile() {
         body: JSON.stringify(editForm),
       });
 
-      const data = await response.json();
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        // Try to parse error response, but handle non-JSON gracefully
+        let errorMessage = `Server error: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON (e.g., HTML error page), use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        
+        toast.show({
+          title: "Save failed",
+          description: errorMessage,
+          variant: "error",
+        });
+        return;
+      }
+
+      // Parse successful response
+      let data;
+      try {
+        data = await response.json();
+      } catch (err) {
+        console.error("Failed to parse response:", err);
+        toast.show({
+          title: "Error",
+          description: "Invalid response from server",
+          variant: "error",
+        });
+        return;
+      }
+
       if (data.success) {
-        setProfile(editForm); // Update global state
+        // Use the profile data from the server response (source of truth)
+        const updatedProfile = data.profile || editForm;
+        setProfile(updatedProfile); // Update global state with server response
+        setEditForm(updatedProfile); // Sync local form state
         setIsEditing(false);
         toast.show({
           title: "Profile saved",
@@ -149,7 +186,7 @@ export default function Profile() {
         });
         track(
           "profile_saved",
-          { notification_enabled: editForm.notification_enabled },
+          { notification_enabled: updatedProfile.notification_enabled },
           "app"
         );
       } else {
@@ -161,9 +198,10 @@ export default function Profile() {
       }
     } catch (err) {
       console.error("Error saving profile:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to connect to server";
       toast.show({
         title: "Error",
-        description: "Failed to connect to server",
+        description: errorMessage,
         variant: "error",
       });
     } finally {
@@ -474,7 +512,13 @@ export default function Profile() {
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {profile.skills.length > 0 ? (
-                      profile.skills.map((skill, idx) => (
+                      profile.skills.map((skill, idx) => {
+                        // Skip if skill is too long (likely a concatenation error)
+                        if (skill.length > 40) return null;
+                        // Skip if it contains known header words and is somewhat long
+                        if (skill.length > 20 && /programming|languages|frameworks|tools|additional|skills/i.test(skill)) return null;
+                        
+                        return (
                         <Badge
                           key={idx}
                           variant="secondary"
@@ -482,7 +526,7 @@ export default function Profile() {
                         >
                           {skill}
                         </Badge>
-                      ))
+                      )})
                     ) : (
                       <span className="text-muted-foreground text-sm italic">
                         No skills listed

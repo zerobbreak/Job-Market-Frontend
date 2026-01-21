@@ -6,6 +6,7 @@ export interface CVProfile {
   $updatedAt: string;
   experience_level?: string;
   education?: string;
+  is_active?: boolean;
 }
 
 export interface ProfileData {
@@ -33,9 +34,15 @@ export interface JobMatch {
     location: string;
     url: string;
     description: string;
+    skills?: string[];
+    source?: string;
+    date_posted?: string;
   };
   match_score: number;
   match_reasons: string[];
+  matching_method?: 'semantic_embeddings' | 'tfidf' | 'none';
+  success_probability?: number; // Percentage (0-100)
+  match_band?: 'Exceptional' | 'Strong' | 'Good' | 'Moderate' | 'Basic';
 }
 
 export interface UploadCVResponse {

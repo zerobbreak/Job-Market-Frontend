@@ -37,4 +37,14 @@ export const cvService = {
     });
     return response.json();
   },
+
+  /**
+   * Set a CV as active
+   */
+  setActive: async (fileId: string) => {
+    const response = await apiClient(`/profile/${fileId}/active`, {
+      method: 'PUT',
+    });
+    return response.json();
+  },
 };

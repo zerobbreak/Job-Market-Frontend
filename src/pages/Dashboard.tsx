@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/utils/api";
 import { useOutletContext } from "react-router-dom";
 import type { OutletContextType } from "@/components/layout/RootLayout";
+import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Dashboard() {
   const { profile } = useOutletContext<OutletContextType>();
@@ -44,7 +46,7 @@ export default function Dashboard() {
       setLoading(true);
 
       // Load CV health from API
-      const cvResp = await apiClient("/profile/current", { method: "GET" });
+      const cvResp = await apiClient("/current", { method: "GET" });
       const cvData = await cvResp.json();
       if (cvData.success) {
         setCvHealth({
@@ -199,8 +201,16 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Quick Actions Grid */}
-      <div className="grid md:grid-cols-2 gap-6">
+      {/* Analytics Tab */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Quick Actions Grid */}
+          <div className="grid md:grid-cols-2 gap-6">
         {/* Profile Overview Card */}
         <Card className="border-border bg-card/50 backdrop-blur-sm hover:border-blue-500/30 transition-all group">
           <CardHeader>
@@ -338,6 +348,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <AnalyticsDashboard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

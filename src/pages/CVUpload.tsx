@@ -10,6 +10,7 @@ import {
   Search,
   ArrowRight,
   AlertCircle,
+  Star,
 } from "lucide-react";
 import {
   Card,
@@ -26,6 +27,7 @@ import { CardSkeleton } from "@/components/ui/loading";
 import { apiClient } from "@/utils/api";
 
 import { useOutletContext } from "react-router-dom";
+import { storage, BUCKET_ID_CVS } from "@/utils/appwrite";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import { track } from "@/utils/analytics";
 import { clearMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
@@ -38,6 +40,7 @@ interface CVStatus {
   matchingStatus: "idle" | "searching" | "completed" | "error";
   matchCount?: number;
   profile?: any;
+  isActive?: boolean;
 }
 
 export default function CVUpload() {
@@ -70,7 +73,8 @@ export default function CVUpload() {
       setLoading(true);
 
       // Fetch from database instead of storage to match backend logic
-      const response = await apiClient("/profile/list", {
+      // Backend route is /api/list (no /profile prefix)
+      const response = await apiClient("/list", {
         method: "GET",
       });
 
@@ -78,12 +82,20 @@ export default function CVUpload() {
 
       if (data.success && data.profiles) {
         const cvStatuses: CVStatus[] = data.profiles.map((prof: any) => ({
-          fileId: prof.cv_file_id || prof.$id,
+          fileId: prof.$id, // Use Profile ID for deletion
           filename: prof.cv_filename || "CV.pdf",
           uploadedAt: prof.$updatedAt || prof.$createdAt,
           analyzed: true, // If in database, it's analyzed
           matchingStatus: "idle",
+          isActive: prof.is_active || false,
         }));
+
+        // Sort: Active first, then by date desc
+        cvStatuses.sort((a, b) => {
+          if (a.isActive && !b.isActive) return -1;
+          if (!a.isActive && b.isActive) return 1;
+          return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+        });
 
         setCvList(cvStatuses);
       } else {
@@ -99,17 +111,41 @@ export default function CVUpload() {
 
   const handleCVUpload = async (
     eventOrFile: React.ChangeEvent<HTMLInputElement> | File,
-    overwrite = false
+    overwrite = false,
+    retryCount = 0
   ) => {
     const file =
       eventOrFile instanceof File ? eventOrFile : eventOrFile.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
+    // Client-side validation
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const ALLOWED_TYPES = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const allowedExtensions = [".pdf", ".doc", ".docx"];
+    const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf("."));
+
+    if (file.size > MAX_SIZE) {
       setError("File is too large. Max 10MB.");
       toast.show({
         title: "Upload failed",
-        description: "File is too large. Max 10MB.",
+        description: `File size: ${(file.size / (1024 * 1024)).toFixed(2)}MB. Maximum allowed: 10MB.`,
+        variant: "error",
+      });
+      return;
+    }
+
+    if (
+      !ALLOWED_TYPES.includes(file.type) &&
+      !allowedExtensions.includes(fileExt)
+    ) {
+      setError("Invalid file type. Only PDF, DOC, and DOCX files are allowed.");
+      toast.show({
+        title: "Upload failed",
+        description: "Please upload a PDF, DOC, or DOCX file.",
         variant: "error",
       });
       return;
@@ -118,6 +154,9 @@ export default function CVUpload() {
     setError("");
     setUploading(true);
 
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
+
     try {
       const formData = new FormData();
       formData.append("cv", file);
@@ -125,10 +164,20 @@ export default function CVUpload() {
         formData.append("overwrite", "true");
       }
 
+      // Backend route is /api/analyze-cv (still correct, no /profile prefix)
       const response = await apiClient("/analyze-cv", {
         method: "POST",
         body: formData,
       });
+
+      // Handle non-OK responses
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          error: `Server error: ${response.status}`,
+        }));
+        throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -137,44 +186,54 @@ export default function CVUpload() {
         // Clear matched jobs cache to prevent showing stale results
         clearMatchedJobsCache();
 
-        track("cv_uploaded", { filename: file.name }, "cv_upload");
+        track("cv_uploaded", { filename: file.name, idempotent: data.idempotent }, "cv_upload");
+        
         toast.show({
-          title: "CV analyzed",
-          description: "Your profile has been updated.",
+          title: data.idempotent ? "CV restored" : "CV analyzed",
+          description: data.message || data.idempotent 
+            ? "Your existing CV profile has been restored."
+            : "Your profile has been updated.",
           variant: "success",
         });
         loadCVList(); // Refresh the list
-      } else if (data.error === "duplicate_exact") {
-        setError(
-          `This CV has already been uploaded as "${data.existing_filename}".`
-        );
-        toast.show({
-          title: "Duplicate CV",
-          description: `This exact file has already been uploaded.`,
-          variant: "error",
-        });
-      } else if (data.error === "duplicate_filename") {
-        // Show replace dialog
-        setReplaceDialog({
-          open: true,
-          file,
-          filename: data.existing_filename,
-        });
-        setUploading(false);
-        return;
+        
+        // Reset file input
+        const fileInput = document.getElementById("cv-upload") as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
       } else {
-        setError(data.error || "Failed to analyze CV");
+        // Handle specific error cases
+        const errorMsg = data.error || "Failed to analyze CV";
+        setError(errorMsg);
         toast.show({
           title: "Upload failed",
-          description: data.error || "Failed to analyze CV",
+          description: errorMsg,
           variant: "error",
         });
       }
-    } catch (err) {
-      setError("Error uploading CV. Please try again.");
+    } catch (err: any) {
+      const errorMessage = err.message || "Error uploading CV. Please try again.";
+      
+      // Retry logic for network errors
+      if (retryCount < MAX_RETRIES && (
+        errorMessage.includes("network") ||
+        errorMessage.includes("fetch") ||
+        errorMessage.includes("timeout") ||
+        err.name === "TypeError"
+      )) {
+        console.log(`Retrying upload (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+        setUploading(false);
+        setTimeout(() => {
+          handleCVUpload(eventOrFile, overwrite, retryCount + 1);
+        }, RETRY_DELAY * (retryCount + 1)); // Exponential backoff
+        return;
+      }
+
+      setError(errorMessage);
       toast.show({
         title: "Upload failed",
-        description: "Error uploading CV. Please try again.",
+        description: retryCount >= MAX_RETRIES
+          ? "Upload failed after multiple attempts. Please check your connection and try again."
+          : errorMessage,
         variant: "error",
       });
     } finally {
@@ -262,6 +321,29 @@ export default function CVUpload() {
     }
   };
 
+  const handleSetActive = async (fileId: string) => {
+    try {
+      await apiClient(`/profile/${fileId}/active`, {
+        method: 'PUT'
+      });
+      
+      toast.show({
+        title: "Active CV Updated",
+        description: "Your active CV has been updated.",
+        variant: "success",
+      });
+      
+      loadCVList();
+    } catch (e) {
+      console.error("Error setting active CV:", e);
+      toast.show({
+        title: "Update failed",
+        description: "Failed to set active CV.",
+        variant: "error",
+      });
+    }
+  };
+
   const handleDeleteCV = async (fileId: string) => {
     setDeleteDialog({ open: true, fileId });
   };
@@ -307,6 +389,25 @@ export default function CVUpload() {
       day: "numeric",
       year: "numeric",
     });
+  };
+
+  const handleViewCV = async (fileId: string, url: string) => {
+    try {
+        // Verify file exists before opening
+        const response = await fetch(url, { method: 'HEAD' });
+        if (response.status === 404) {
+             toast.show({
+                title: "File Not Found",
+                description: "This CV file seems to be missing. Please delete this entry and upload again.",
+                variant: "error",
+             });
+             return;
+        }
+        window.open(url, '_blank');
+    } catch (e) {
+        // Network error or CORS might block HEAD, try opening anyway as fallback
+        window.open(url, '_blank');
+    }
   };
 
   return (
@@ -404,14 +505,29 @@ export default function CVUpload() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-lg truncate">
-                          {cv.filename}
-                        </CardTitle>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleViewCV(cv.fileId, storage.getFileView(BUCKET_ID_CVS, cv.fileId).toString());
+                              }}
+                              className="hover:text-blue-400 hover:underline transition-colors text-left"
+                            >
+                              {cv.filename}
+                            </button>
+                          </CardTitle>
                         <CardDescription className="mt-1">
                           Uploaded {formatDate(cv.uploadedAt)}
                         </CardDescription>
 
                         {/* Status Badges */}
                         <div className="flex flex-wrap gap-2 mt-3">
+                          {cv.isActive && (
+                            <Badge className="bg-blue-600/20 text-blue-400 border-blue-500/50">
+                                <Star className="h-3 w-3 mr-1 fill-blue-400" />
+                                Active
+                            </Badge>
+                          )}
                           {cv.analyzed ? (
                             <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
                               <CheckCircle className="h-3 w-3 mr-1" />
@@ -450,6 +566,18 @@ export default function CVUpload() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-2 shrink-0">
+                      {!cv.isActive && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleSetActive(cv.fileId)}
+                            className="hover:text-blue-400 hover:bg-blue-500/10"
+                            title="Set as Active CV"
+                        >
+                            <Star className="h-4 w-4" />
+                        </Button>
+                      )}
+
                       {cv.analyzed && cv.matchingStatus === "idle" && (
                         <Button
                           size="sm"

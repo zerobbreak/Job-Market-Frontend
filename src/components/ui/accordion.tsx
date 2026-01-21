@@ -17,18 +17,22 @@ export function AccordionItem({
 }) {
   const [open, setOpen] = React.useState(defaultOpen)
   return (
-    <div className="border rounded-xl">
+    <div className="border rounded-xl bg-white shadow-sm overflow-hidden">
       <button
         type="button"
-        className="w-full flex items-center justify-between p-4"
+        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="font-semibold text-left">{title}</span>
-        <ChevronDown className={cn('h-5 w-5 transition-transform', open ? 'rotate-180' : '')} />
+        <span className="font-semibold text-left text-gray-900">{title}</span>
+        <ChevronDown className={cn('h-5 w-5 text-gray-500 transition-transform duration-200', open ? 'rotate-180' : '')} />
       </button>
-      {open && (
-        <div className="px-4 pb-4 text-gray-600">{children}</div>
-      )}
+      <div className={cn("grid transition-all duration-200 ease-in-out", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+        <div className="overflow-hidden">
+            <div className="px-4 pb-4 pt-0 text-gray-600 border-t border-gray-100 mt-2">
+                {children}
+            </div>
+        </div>
+      </div>
     </div>
   )
 }

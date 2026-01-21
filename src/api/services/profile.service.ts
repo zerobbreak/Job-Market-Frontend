@@ -6,7 +6,7 @@ export const profileService = {
    * Get current user's profile metadata
    */
   getCurrent: async () => {
-    const response = await apiClient('/profile/current', { method: 'GET' });
+    const response = await apiClient('/current', { method: 'GET' });
     const data = await response.json();
     return data.success ? data : null;
   },
@@ -15,7 +15,7 @@ export const profileService = {
    * Get structured profile data
    */
   getStructured: async (): Promise<ProfileData | null> => {
-    const response = await apiClient('/profile/structured', {
+    const response = await apiClient('/structured', {
       method: 'GET',
       credentials: 'include',
     });

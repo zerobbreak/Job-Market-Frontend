@@ -45,6 +45,7 @@ export default function MatchedJobs() {
     setShowPreviewDialog,
     previewLoading,
     previewProgress,
+    previewPhase,
     previewData,
     initiatePreview,
     handleAutoApply,
@@ -105,6 +106,7 @@ export default function MatchedJobs() {
         onOpenChange={setShowPreviewDialog}
         loading={previewLoading}
         progress={previewProgress}
+        phase={previewPhase}
         jobUrl={pendingJob?.url}
         jobTitle={pendingJob?.title}
         company={pendingJob?.company}

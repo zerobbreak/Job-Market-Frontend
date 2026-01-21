@@ -1,3 +1,11 @@
+/**
+ * useJobApplication Hook
+ * 
+ * Manages job application state and preview generation.
+ * 
+ * IMPORTANT: Hook order must remain constant for React Fast Refresh compatibility.
+ * Do not reorder hooks or add conditional hooks.
+ */
 import { useState, useRef, useEffect } from "react";
 import { apiClient } from "@/utils/api";
 import { useToast } from "@/components/ui/toast";
@@ -52,40 +60,49 @@ function saveGeneratedFilesToStorage(files: GeneratedFiles | null) {
 }
 
 export function useJobApplication() {
+  // ============================================================================
+  // HOOK ORDER MUST REMAIN CONSTANT - DO NOT REORDER OR ADD CONDITIONAL HOOKS
+  // ============================================================================
+  // All hooks must be called unconditionally and in the same order every render
+  // This ensures React Hooks rules are followed and prevents hook order violations
+  
+  // Context hooks (always first)
   const toast = useToast();
 
+  // State hooks (application state)
   const [applying, setApplying] = useState(false);
-  const [applyAttempts, setApplyAttempts] = useState(0);
-  const [applyMaxAttempts, setApplyMaxAttempts] = useState(40);
-  const [currentApplyJobId, setCurrentApplyJobId] = useState<string | null>(
-    null
-  );
-  const applyCancelledRef = useRef(false);
+  const [applyAttempts] = useState(0);
+  const [applyMaxAttempts] = useState(40);
+  const [currentApplyJobId, setCurrentApplyJobId] = useState<string | null>(null);
   const [pendingJob, setPendingJob] = useState<Job | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [applyTemplate, setApplyTemplate] = useState<
-    "MODERN" | "PROFESSIONAL" | "ACADEMIC"
-  >("MODERN");
-  const [generatedFiles, setGeneratedFiles] = useState<GeneratedFiles | null>(
+  const [applyTemplate, setApplyTemplate] = useState<"MODERN" | "PROFESSIONAL" | "ACADEMIC">("MODERN");
+  const [generatedFiles] = useState<GeneratedFiles | null>(
     () => loadGeneratedFilesFromStorage()
   );
   const [error, setError] = useState<string>("");
+  
+  // Preview state hooks (grouped together)
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewProgress, setPreviewProgress] = useState<number>(0);
+  const [previewPhase, setPreviewPhase] = useState<string>("");
   const [previewData, setPreviewData] = useState<{
     cvHtml: string;
     coverLetterHtml: string;
     atsScore?: number;
     atsAnalysis?: string;
-    jobId?: string; // Add jobId to track which preview job we're looking at
+    jobId?: string;
   } | null>(null);
-  const [previewProgress, setPreviewProgress] = useState<number>(0);
   
-  // Automation State
+  // Automation state hooks
   const [isAutoApplying, setIsAutoApplying] = useState(false);
   const [automationStatus, setAutomationStatus] = useState<string>("");
 
-  // Persist generatedFiles to localStorage whenever it changes
+  // Ref hooks (after state)
+  const applyCancelledRef = useRef(false);
+
+  // Effect hooks (always last, after all state/ref hooks)
   useEffect(() => {
     saveGeneratedFilesToStorage(generatedFiles);
   }, [generatedFiles]);
@@ -98,88 +115,31 @@ export function useJobApplication() {
   const confirmApply = async () => {
     if (!pendingJob) return;
     setShowTemplateDialog(false);
-    setApplying(true);
-    setError("");
-    applyCancelledRef.current = false;
-    setGeneratedFiles(null);
-
+    
+    // Legacy support: "Confirm" now means "I've applied manually" or "Process Complete"
+    // The actual generation happened in initiatePreview
+    
     try {
-      const start = await apiClient("/apply-job", {
-        method: "POST",
-        body: JSON.stringify({ job: pendingJob, template: applyTemplate }),
+      track("application_manual_complete", {
+        jobId: pendingJob.id,
+        title: pendingJob.title,
+        company: pendingJob.company,
+        template: applyTemplate,
+      }, "app");
+      
+      toast.show({
+        title: "Application Recorded",
+        description: "Good luck with your application!",
+        variant: "success",
       });
-      const startData = await start.json();
-      if (!startData.success || !startData.job_id) {
-        setError(startData.error || "Failed to start application");
-        setApplying(false);
-        return;
-      }
-      const jobId = startData.job_id;
-      setCurrentApplyJobId(jobId);
-      try {
-        track("application_submitted", {
-          jobId,
-          title: pendingJob.title,
-          company: pendingJob.company,
-          template: applyTemplate,
-        }, "app");
-      } catch (_) {}
-
-      let attempts = 0;
-      const maxAttempts = 40;
-      setApplyMaxAttempts(maxAttempts);
-      const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-      while (attempts < maxAttempts) {
-        if (applyCancelledRef.current) break;
-
-        const statusResp = await apiClient(`/apply-status?job_id=${jobId}`, {
-          method: "GET",
-        });
-        const statusData = await statusResp.json();
-
-        if (statusData.status === "done" && statusData.files) {
-          setGeneratedFiles({
-            cv: statusData.files.cv,
-            cover_letter: statusData.files.cover_letter,
-            interview_prep: statusData.files.interview_prep,
-            form_data: statusData.files.form_data,
-            jobId: pendingJob.id,
-            jobTitle: pendingJob.title,
-            generatedAt: new Date().toISOString(),
-          });
-          track(
-            "apply_complete",
-            {
-              jobId,
-              title: pendingJob.title,
-              company: pendingJob.company,
-              template: applyTemplate,
-            },
-            "app"
-          );
-          toast.show({
-            title: "Application Ready!",
-            description: "Your files have been generated successfully.",
-            variant: "success",
-          });
-          break;
-        }
-        if (statusData.status === "error") {
-          setError(statusData.error || "Application failed");
-          break;
-        }
-        attempts += 1;
-        setApplyAttempts(attempts);
-        const backoff = Math.min(1000 * Math.pow(1.3, attempts), 5000);
-        await delay(backoff);
-      }
-    } catch (error) {
-      console.error("Error applying to job:", error);
-      setError("Error submitting application. Please try again.");
+      
+    } catch (_) {
+      // Ignore tracking errors
     } finally {
+      setShowPreviewDialog(false);
       setApplying(false);
       setCurrentApplyJobId(null);
+      // We don't clear generatedFiles here in case they want to download them later from history
     }
   };
 
@@ -190,6 +150,7 @@ export function useJobApplication() {
     setPreviewLoading(true);
     setPreviewData(null);
     setPreviewProgress(0);
+    setPreviewPhase("");
     setError("");
 
     try {
@@ -211,42 +172,98 @@ export function useJobApplication() {
 
       const startData = await startResp.json();
       if (!startData.success || !startData.job_id) {
-        throw new Error(startData.error || "Failed to start preview");
-      }
-      const jobId = startData.job_id as string;
+              throw new Error(startData.error || "Failed to start preview");
+            }
+            const jobId = startData.job_id as string;
 
-      let attempts = 0;
-      const maxAttempts = 180;
-      const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+            // Wait a moment for the job to be persisted in Appwrite
+            const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+            await delay(1000);
+
+            let attempts = 0;
+            const maxAttempts = 180; // ~7.5 minutes max (with exponential backoff)
+            let consecutiveErrors = 0;
+      const maxConsecutiveErrors = 3;
 
       while (attempts < maxAttempts) {
-        const statusResp = await apiClient(`/apply-preview/status?job_id=${jobId}`, {
-          method: "GET",
-        });
-        const statusData = await statusResp.json();
-
-        if (!statusData.success) {
-          throw new Error(statusData.error || "Preview status failed");
-        }
-
-        setPreviewProgress(statusData.progress ?? 0);
-
-        if (statusData.status === "done" && statusData.result) {
-          setPreviewData({
-            cvHtml: statusData.result.cv_html,
-            coverLetterHtml: statusData.result.cover_letter_html,
-            atsScore: statusData.result.ats?.score,
-            atsAnalysis: statusData.result.ats?.analysis,
-            jobId: jobId, // Store the preview job ID
+        try {
+          const statusResp = await apiClient(`/apply-preview/status?job_id=${jobId}`, {
+            method: "GET",
           });
-          break;
+          
+          if (!statusResp.ok) {
+            if (statusResp.status === 404) {
+              // Job not found - might have been cleared, wait a bit and retry once
+              if (attempts < 5) {
+                await delay(1000);
+                attempts += 1;
+                continue;
+              }
+              throw new Error("Preview job not found. Please try again.");
+            }
+            const errorText = await statusResp.text();
+            throw new Error(`Server error: ${statusResp.status} - ${errorText}`);
+          }
+
+          const statusData = await statusResp.json();
+
+          if (!statusData.success) {
+            consecutiveErrors += 1;
+            if (consecutiveErrors >= maxConsecutiveErrors) {
+              throw new Error(statusData.error || "Preview status failed");
+            }
+            // Continue polling on transient errors
+            await delay(1000);
+            attempts += 1;
+            continue;
+          }
+
+          // Reset error counter on success
+          consecutiveErrors = 0;
+
+          // Update progress and phase
+          setPreviewProgress(statusData.progress ?? 0);
+          setPreviewPhase(statusData.phase || "");
+
+          if (statusData.status === "done" && statusData.result) {
+            setPreviewData({
+              cvHtml: statusData.result.cv_html,
+              coverLetterHtml: statusData.result.cover_letter_html,
+              atsScore: statusData.result.ats?.score,
+              atsAnalysis: statusData.result.ats?.analysis,
+              jobId: jobId,
+            });
+            setPreviewPhase("Preview ready!");
+            break;
+          }
+          
+          if (statusData.status === "error") {
+            throw new Error(statusData.error || "Preview generation failed");
+          }
+
+          // Exponential backoff with jitter for better performance
+          attempts += 1;
+          const baseDelay = 600;
+          const backoff = Math.min(baseDelay + attempts * 150, 2500);
+          const jitter = Math.random() * 200; // Add randomness to prevent thundering herd
+          await delay(backoff + jitter);
+        } catch (pollError: any) {
+          // If it's a network error or transient issue, retry
+          if (attempts < 10 && pollError.message?.includes("fetch")) {
+            consecutiveErrors += 1;
+            if (consecutiveErrors < maxConsecutiveErrors) {
+              await delay(2000);
+              attempts += 1;
+              continue;
+            }
+          }
+          throw pollError;
         }
-        if (statusData.status === "error") {
-          throw new Error(statusData.error || "Preview failed");
-        }
-        attempts += 1;
-        const backoff = Math.min(600 + attempts * 150, 2500);
-        await delay(backoff);
+      }
+
+      // Timeout check
+      if (attempts >= maxAttempts && !previewData) {
+        throw new Error("Preview generation timed out. Please try again.");
       }
       if (!previewData) {
         // If loop finishes without setting data (unlikely given breaks), check if we have data now
@@ -390,6 +407,7 @@ export function useJobApplication() {
     previewData,
     previewLoading,
     previewProgress,
+    previewPhase,
     initiatePreview,
     handleAutoApply,
     isAutoApplying,

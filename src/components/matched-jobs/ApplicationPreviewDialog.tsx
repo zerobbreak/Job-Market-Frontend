@@ -20,6 +20,7 @@ interface ApplicationPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   loading: boolean;
   progress?: number;
+  phase?: string;
   jobUrl?: string;
   jobTitle?: string;
   company?: string;
@@ -43,6 +44,7 @@ export function ApplicationPreviewDialog({
   onOpenChange,
   loading,
   progress = 0,
+  phase = "",
   jobUrl,
   jobTitle,
   company,
@@ -168,18 +170,39 @@ export function ApplicationPreviewDialog({
 
         <div className="flex-1 overflow-hidden">
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center h-full p-8">
               <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
-              <p className="text-muted-foreground">Generating preview...</p>
-              <div className="mt-3 w-64">
-                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+              <p className="text-lg font-medium text-gray-900 mb-2">
+                {phase || "Generating preview..."}
+              </p>
+              <div className="mt-4 w-full max-w-md">
+                <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
                   <div
-                    className="h-2 bg-blue-500 transition-[width]"
+                    className="h-3 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out rounded-full"
                     style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
                   />
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground text-center">
-                  {Math.round(Math.max(0, Math.min(100, progress)))}%
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {phase || "Processing..."}
+                  </span>
+                  <span className="font-semibold text-blue-600">
+                    {Math.round(Math.max(0, Math.min(100, progress)))}%
+                  </span>
+                </div>
+                {/* Progress phases indicator */}
+                <div className="mt-4 grid grid-cols-5 gap-2">
+                  {[10, 25, 50, 75, 100].map((milestone) => (
+                    <div
+                      key={milestone}
+                      className={`h-1 rounded-full transition-colors ${
+                        progress >= milestone
+                          ? "bg-blue-500"
+                          : "bg-gray-200"
+                      }`}
+                      title={`${milestone}%`}
+                    />
+                  ))}
                 </div>
               </div>
             </div>

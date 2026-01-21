@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Briefcase,
   Upload,
+  PenTool,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -50,7 +51,8 @@ export default function RootLayout() {
       }
 
       try {
-        const response = await apiClient("/profile/structured");
+        // Backend route is registered as /api/structured (no /profile prefix)
+        const response = await apiClient("/structured");
         
         // Response status check is handled inside apiClient (throws on 401)
         
@@ -69,6 +71,7 @@ export default function RootLayout() {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "My CV", href: "/cv-upload", icon: Upload },
+    { name: "CV Editor", href: "/cv-editor", icon: PenTool },
     { name: "Job Matches", href: "/job-matches", icon: Briefcase },
     { name: "Find Jobs", href: "/search", icon: Search },
     { name: "Applications", href: "/applications", icon: FileText },

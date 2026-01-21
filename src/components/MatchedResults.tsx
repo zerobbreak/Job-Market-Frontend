@@ -20,10 +20,19 @@ import {
   Building2,
   TrendingUp,
   RefreshCw,
+  Target,
+  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { JobCardSkeleton } from "@/components/matched-jobs/JobCardSkeleton";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Job = {
   id: string;
@@ -35,9 +44,21 @@ type Job = {
 };
 
 type MatchedJob = {
-  job: Job;
+  job: Job & {
+    skills?: string[];
+    source?: string;
+    date_posted?: string;
+  };
   match_score: number;
   match_reasons: string[];
+  matching_method?: 'semantic_embeddings' | 'tfidf' | 'none';
+  success_probability?: number; // Percentage (0-100)
+  match_band?: 'Exceptional' | 'Strong' | 'Good' | 'Moderate' | 'Basic';
+  semantic_score?: number;
+  score_breakdown?: {
+    semantic: number;
+    keyword: number;
+  };
 };
 
 function getMatchBadgeColor(score: number) {
@@ -220,14 +241,52 @@ export default function MatchedResults({
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge
-                    className={cn(
-                      "shrink-0 font-semibold",
-                      getMatchBadgeColor(match.match_score)
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            className={cn(
+                              "font-semibold cursor-help",
+                              getMatchBadgeColor(match.match_score)
+                            )}
+                          >
+                            {match.match_score}%
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-xs space-y-1">
+                            <p className="font-semibold">Score Breakdown</p>
+                            <div className="flex justify-between gap-4">
+                              <span>Semantic (AI):</span>
+                              <span>{match.score_breakdown?.semantic?.toFixed(0) || 0}%</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                              <span>Keywords:</span>
+                              <span>{match.score_breakdown?.keyword?.toFixed(0) || 0}%</span>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    {match.match_band && (
+                      <Badge variant="outline" className="text-xs">
+                        {match.match_band}
+                      </Badge>
                     )}
-                  >
-                    {match.match_score}%
-                  </Badge>
+                    {match.success_probability !== undefined && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Target className="h-3 w-3" />
+                        <span>{match.success_probability.toFixed(0)}% success</span>
+                      </div>
+                    )}
+                    {match.matching_method === 'semantic_embeddings' && (
+                      <div className="flex items-center gap-1 text-xs text-blue-400">
+                        <Sparkles className="h-3 w-3" />
+                        <span>AI Match</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Match Reasons */}

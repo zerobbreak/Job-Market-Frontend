@@ -25,10 +25,10 @@ export function useJobMatching() {
   const [useDemoJobs, setUseDemoJobs] = useState(false);
   const [minMatchScore, setMinMatchScore] = useState(0);
 
-  const findMatches = async () => {
+  const findMatches = async (forceRefresh = false) => {
     setLoading(true);
     setError("");
-    setMatchedJobs([]); // Clear current matches
+    if (forceRefresh) setMatchedJobs([]); // Clear current matches only on force refresh
 
     try {
       const response = await apiClient("/match-jobs", {
@@ -37,6 +37,7 @@ export function useJobMatching() {
           location: location,
           max_results: 20,
           use_demo: useDemoJobs,
+          force_refresh: forceRefresh, // Send force_refresh flag
         }),
       });
       const data = await response.json();

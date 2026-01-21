@@ -1,10 +1,10 @@
-import { Briefcase } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 interface MatchedJobsHeaderProps {
   loading: boolean;
-  onSearch: () => void;
+  onSearch: (force?: boolean) => void;
   hasProfile: boolean;
 }
 
@@ -25,13 +25,17 @@ export function MatchedJobsHeader({
         </p>
       </div>
       <div className="flex gap-2">
-        <Button onClick={onSearch} disabled={loading}>
+        <Button 
+          onClick={() => onSearch(true)} // Pass true to force refresh
+          disabled={loading || !hasProfile}
+          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] transition-all"
+        >
           {loading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <Briefcase className="mr-2 h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4" />
           )}
-          {loading ? "Searching..." : "Find Matches"}
+          Refresh Matches
         </Button>
       </div>
     </div>

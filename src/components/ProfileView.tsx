@@ -56,9 +56,11 @@ export default function ProfileView({
               <Textarea id="skills" value={profile.skills.join(', ')} onChange={(e) => setProfile({ ...profile, skills: e.target.value.split(',').map(s => s.trim()).filter(s => s) })} rows={3} />
             ) : (
               <div className="flex flex-wrap gap-2">
-                {profile.skills.map((skill, idx) => (
-                  <Badge key={idx} variant="secondary">{skill}</Badge>
-                ))}
+                {profile.skills.map((skill, idx) => {
+                   if (skill.length > 40) return null;
+                   if (skill.length > 20 && /programming|languages|frameworks|tools|additional|skills/i.test(skill)) return null;
+                   return <Badge key={idx} variant="secondary">{skill}</Badge>
+                })}
               </div>
             )}
           </div>

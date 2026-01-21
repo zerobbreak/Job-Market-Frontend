@@ -24,8 +24,13 @@ export function CVList({ files, isLoading, onDelete }: CVListProps) {
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
-    await onDelete(id);
-    setDeletingId(null);
+    try {
+      await onDelete(id);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (isLoading) {
