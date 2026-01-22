@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDropzone } from "react-dropzone";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Upload,
   Loader2,
@@ -11,6 +20,9 @@ import {
   ArrowRight,
   AlertCircle,
   Star,
+  Sparkles,
+  Target,
+  Zap,
 } from "lucide-react";
 import {
   Card,
@@ -63,6 +75,8 @@ export default function CVUpload() {
     file: File | null;
     filename: string;
   }>({ open: false, file: null, filename: "" });
+
+  const [insightsProfile, setInsightsProfile] = useState<any>(null);
 
   useEffect(() => {
     loadCVList();
@@ -195,6 +209,10 @@ export default function CVUpload() {
             : "Your profile has been updated.",
           variant: "success",
         });
+        
+        // Show insights dialog
+        setInsightsProfile(data.profile);
+        
         loadCVList(); // Refresh the list
         
         // Reset file input
@@ -410,6 +428,44 @@ export default function CVUpload() {
     }
   };
 
+  const onDrop = useCallback((acceptedFiles: File[], fileRejections: any[]) => {
+    if (fileRejections.length > 0) {
+      const rejection = fileRejections[0];
+      
+      if (rejection.errors[0].code === "file-too-large") {
+         setError("File is too large. Max 10MB.");
+         toast.show({
+            title: "Upload failed",
+            description: "File is larger than 10MB.",
+            variant: "error"
+         });
+      } else {
+         setError("Invalid file type. Only PDF, DOC, and DOCX files are allowed.");
+         toast.show({
+            title: "Upload failed",
+            description: "Please upload a PDF, DOC, or DOCX file.",
+            variant: "error"
+         });
+      }
+      return;
+    }
+
+    if (acceptedFiles.length > 0) {
+      handleCVUpload(acceptedFiles[0]);
+    }
+  }, [handleCVUpload]);
+
+  const { getRootProps, getInputProps, isDragActive, open: openFileDialog } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    maxSize: 10 * 1024 * 1024, // 10MB
+    multiple: false
+  });
+
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-10">
       {/* Header */}
@@ -434,36 +490,39 @@ export default function CVUpload() {
       {/* Upload Section */}
       <Card className="border-border bg-card/50 backdrop-blur-sm">
         <CardContent className="pt-6">
-          <label
-            htmlFor="cv-upload"
-            className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-muted-foreground/25 rounded-xl cursor-pointer hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group"
+          <div
+            {...getRootProps()}
+            className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-all group ${
+              isDragActive 
+                ? "border-blue-500 bg-blue-500/10 scale-[1.02]" 
+                : "border-muted-foreground/25 hover:border-blue-500/50 hover:bg-blue-500/5"
+            }`}
           >
+            <input {...getInputProps()} id="cv-upload" disabled={uploading} />
             <div className="flex flex-col items-center justify-center gap-3">
-              <div className="p-4 bg-muted rounded-full group-hover:bg-blue-500/10 transition-colors">
+              <div className={`p-4 rounded-full transition-colors ${
+                isDragActive ? "bg-blue-500/20" : "bg-muted group-hover:bg-blue-500/10"
+              }`}>
                 {uploading ? (
                   <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
                 ) : (
-                  <Upload className="h-8 w-8 text-muted-foreground group-hover:text-blue-400" />
+                  <Upload className={`h-8 w-8 ${
+                    isDragActive ? "text-blue-500" : "text-muted-foreground group-hover:text-blue-400"
+                  }`} />
                 )}
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-foreground group-hover:text-blue-400">
-                  {uploading ? "Uploading..." : "Upload New CV"}
+                <p className={`text-lg font-semibold ${
+                    isDragActive ? "text-blue-500" : "text-foreground group-hover:text-blue-400"
+                }`}>
+                  {uploading ? "Uploading..." : isDragActive ? "Drop CV here" : "Upload New CV"}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   PDF, DOC, or DOCX (Max 10MB)
                 </p>
               </div>
             </div>
-            <input
-              id="cv-upload"
-              type="file"
-              className="hidden"
-              accept=".pdf,.doc,.docx"
-              onChange={handleCVUpload}
-              disabled={uploading}
-            />
-          </label>
+          </div>
         </CardContent>
       </Card>
 
@@ -566,6 +625,20 @@ export default function CVUpload() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-2 shrink-0">
+                      {/* Edit Button - Always visible for analyzed CVs */}
+                      {cv.analyzed && (
+                         <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate('/cv-editor')}
+                            className="gap-2"
+                            title="Edit Parsed Profile"
+                         >
+                            <FileText className="h-4 w-4" />
+                            Edit Profile
+                         </Button>
+                      )}
+
                       {!cv.isActive && (
                         <Button
                             size="sm"
@@ -640,6 +713,105 @@ export default function CVUpload() {
         cancelText="Cancel"
         onConfirm={confirmReplace}
       />
+
+      {/* Profile Insights Dialog */}
+      <Dialog open={!!insightsProfile} onOpenChange={(open) => !open && setInsightsProfile(null)}>
+        <DialogContent className="max-w-2xl bg-card border-border">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-400" />
+              <DialogTitle>AI Profile Analysis</DialogTitle>
+            </div>
+            <DialogDescription>
+              We've analyzed your CV and extracted these key insights to optimize your job search.
+            </DialogDescription>
+          </DialogHeader>
+
+          {insightsProfile && (
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-blue-400" />
+                    <h4 className="font-semibold text-blue-100">Seniority Level</h4>
+                  </div>
+                  <div className="text-xl font-bold text-blue-300">
+                    {insightsProfile.experience_level || "Not detected"}
+                  </div>
+                </div>
+
+                <div className="space-y-2 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-purple-400" />
+                    <h4 className="font-semibold text-purple-100">Target Roles</h4>
+                  </div>
+                  <div className="text-sm text-purple-300 line-clamp-2">
+                    {insightsProfile.career_goals || "General Developer"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-yellow-400" />
+                  Top Skills
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {(insightsProfile.skills || []).slice(0, 10).map((skill: string) => (
+                    <Badge key={skill} variant="secondary" className="bg-muted hover:bg-muted/80">
+                      {skill}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {insightsProfile.strengths && insightsProfile.strengths.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Star className="h-4 w-4 text-orange-400" />
+                    Key Strengths
+                  </h4>
+                  <ul className="grid gap-2">
+                    {insightsProfile.strengths.slice(0, 3).map((strength: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                        {strength}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setInsightsProfile(null)}>
+              Close
+            </Button>
+            <Button 
+              onClick={() => {
+                setInsightsProfile(null);
+                const cv = cvList.find(c => c.filename === insightsProfile.cv_filename) || 
+                           cvList[0]; // Fallback to first if name match fails (e.g. rename)
+                
+                if (cv) {
+                  handleFindMatches(cv);
+                } else {
+                  // Fallback: wait for list refresh or just go to matches page if we think it worked
+                  // Actually handleFindMatches needs a CVStatus object. 
+                  // If we can't find it, we might be too fast for the list update.
+                  // Let's construct a temp one or just toast.
+                  navigate("/job-matches");
+                }
+              }}
+              className="bg-linear-to-r from-blue-600 to-purple-600"
+            >
+              Find Matching Jobs
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

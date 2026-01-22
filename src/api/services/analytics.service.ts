@@ -41,7 +41,29 @@ export interface HeatmapData {
   low_heat_count: number;
 }
 
+export interface MarketStats {
+  count: number;
+  avg_salary: number;
+  salary_range: { min: number; max: number };
+  top_skills: Array<{ name: string; count: number }>;
+  sample_size_salaries: number;
+}
+
 export const analyticsService = {
+  /**
+   * Get market statistics
+   */
+  getMarketStats: async (role?: string, location?: string): Promise<MarketStats> => {
+    const params = new URLSearchParams();
+    if (role) params.append('role', role);
+    if (location) params.append('location', location);
+    
+    const response = await apiClient(`/analytics/market-stats?${params.toString()}`, {
+      method: 'GET',
+    });
+    const data = await response.json();
+    return data.stats;
+  },
   /**
    * Get engagement analytics for user's applications
    */

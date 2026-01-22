@@ -3,6 +3,7 @@ import type { OutletContextType } from "@/components/layout/RootLayout";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { useJobApplication } from "@/hooks/useJobApplication";
 import { useMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
+import { useCVs } from "@/api/queries/useCVs";
 import { MatchedJobsHeader } from "@/components/matched-jobs/MatchedJobsHeader";
 import { ApplicationStatusBanner } from "@/components/matched-jobs/ApplicationStatusBanner";
 import { TemplateSelectionDialog } from "@/components/matched-jobs/TemplateSelectionDialog";
@@ -13,6 +14,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function MatchedJobs() {
   const { profile } = useOutletContext<OutletContextType>();
+  const { data: cvs } = useCVs();
 
   // Custom hooks for state management
   const {
@@ -49,6 +51,7 @@ export default function MatchedJobs() {
     previewData,
     initiatePreview,
     handleAutoApply,
+    handleBatchAutoApply,
     isAutoApplying,
     automationStatus
   } = useJobApplication();
@@ -87,6 +90,11 @@ export default function MatchedJobs() {
               setMinMatchScore={setMinMatchScore}
               findMatches={findMatches}
               handleApply={handleApply}
+              onAutoApplyAll={
+                cvs && cvs.length > 0 
+                  ? (jobs) => handleBatchAutoApply(jobs.map(j => j.id), cvs[0].$id) 
+                  : undefined
+              }
               isLoading={loading}
             />
         )}
@@ -126,6 +134,7 @@ export default function MatchedJobs() {
         coverLetterHtml={previewData?.coverLetterHtml || ""}
         atsScore={previewData?.atsScore}
         atsAnalysis={previewData?.atsAnalysis}
+        applicationAnswers={previewData?.applicationAnswers}
         error={applicationError}
         onConfirm={confirmApply}
         onCancel={() => setShowPreviewDialog(false)}

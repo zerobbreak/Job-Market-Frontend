@@ -47,4 +47,18 @@ export const cvService = {
     });
     return response.json();
   },
+
+  /**
+   * Improve text using AI
+   */
+  improveText: async (text: string, section: string): Promise<{ improved_text: string }> => {
+    const response = await apiClient('/profile/improve-text', {
+      method: 'POST',
+      body: JSON.stringify({ text, section }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.json();
+  },
 };

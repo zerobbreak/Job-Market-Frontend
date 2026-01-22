@@ -10,6 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { experienceSchema } from '@/lib/schemas';
 import { useEffect } from 'react';
+import AIImproveButton from '../AIImproveButton';
 
 type ExperienceItem = z.infer<typeof experienceSchema>;
 
@@ -177,7 +178,17 @@ const ExperienceForm: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={`experience.${index}.description`}>Description</Label>
+            <div className="flex justify-between items-center">
+                <Label htmlFor={`experience.${index}.description`}>Description</Label>
+                <AIImproveButton
+                    text={watch(`experience.${index}.description`)}
+                    section="experience description"
+                    onImprove={(newText) => {
+                        setValue(`experience.${index}.description`, newText, { shouldDirty: true });
+                        updateExperience(data.experience[index].id, { description: newText });
+                    }} 
+                />
+            </div>
             <Textarea
               {...register(`experience.${index}.description`)}
               placeholder="Describe your responsibilities and achievements..."

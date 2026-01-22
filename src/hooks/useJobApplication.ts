@@ -11,6 +11,7 @@ import { apiClient } from "@/utils/api";
 import { useToast } from "@/components/ui/toast";
 import { track } from "@/utils/analytics";
 import type { Job } from "./useJobMatching";
+import { applicationsService } from "@/api/services/applications.service";
 
 const GENERATED_FILES_STORAGE_KEY = "generatedApplicationFiles";
 
@@ -93,6 +94,7 @@ export function useJobApplication() {
     atsScore?: number;
     atsAnalysis?: string;
     jobId?: string;
+    applicationAnswers?: Record<string, string>;
   } | null>(null);
   
   // Automation state hooks
@@ -232,6 +234,7 @@ export function useJobApplication() {
               atsScore: statusData.result.ats?.score,
               atsAnalysis: statusData.result.ats?.analysis,
               jobId: jobId,
+              applicationAnswers: statusData.result.application_answers,
             });
             setPreviewPhase("Preview ready!");
             break;
@@ -369,6 +372,35 @@ export function useJobApplication() {
     }
   };
 
+  const handleBatchAutoApply = async (jobIds: string[], cvId: string) => {
+    try {
+      setIsAutoApplying(true);
+      setAutomationStatus(`Queuing ${jobIds.length} applications...`);
+      
+      const result = await applicationsService.autoApply(jobIds, cvId);
+      
+      if (result.success) {
+        toast.show({
+          title: "Batch Application Queued",
+          description: result.message,
+          variant: "success",
+        });
+      } else {
+         throw new Error(result.message || "Failed to queue applications");
+      }
+    } catch (e: any) {
+      console.error("Batch apply failed:", e);
+      toast.show({
+        title: "Batch Apply Failed",
+        description: e.message || "Could not queue applications",
+        variant: "error",
+      });
+    } finally {
+      setIsAutoApplying(false);
+      setAutomationStatus("");
+    }
+  };
+
   const handleCancelApply = async () => {
     try {
       applyCancelledRef.current = true;
@@ -410,6 +442,7 @@ export function useJobApplication() {
     previewPhase,
     initiatePreview,
     handleAutoApply,
+    handleBatchAutoApply,
     isAutoApplying,
     automationStatus
   };

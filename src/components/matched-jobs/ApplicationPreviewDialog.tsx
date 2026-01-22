@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, CheckCircle, FileText, Mail, ExternalLink, Clipboard, PlayCircle, RefreshCw, AlertCircle, Download } from "lucide-react";
+import { Loader2, CheckCircle, FileText, Mail, ExternalLink, Clipboard, PlayCircle, RefreshCw, AlertCircle, Download, Copy, Rocket, BrainCircuit, Sparkles, TrendingUp } from "lucide-react";
 import { track } from "@/utils/analytics";
 import { useToast } from "@/components/ui/toast";
 import { apiClient } from "@/utils/api";
@@ -29,6 +29,21 @@ interface ApplicationPreviewDialogProps {
   coverLetterHtml: string;
   atsScore?: number;
   atsAnalysis?: string;
+  strategicAnalysis?: {
+    role_type?: string;
+    key_requirements?: string[];
+    candidate_match_level?: string;
+    gap_strategy?: string;
+  };
+  cvImprovements?: {
+    type: string;
+    before?: string;
+    after?: string;
+    reason?: string;
+    added?: string;
+    context?: string;
+  }[];
+  applicationAnswers?: Record<string, string>;
   error?: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -52,6 +67,10 @@ export function ApplicationPreviewDialog({
   cvHtml,
   coverLetterHtml,
   atsScore,
+  atsAnalysis,
+  strategicAnalysis,
+  cvImprovements,
+  applicationAnswers,
   error,
   onConfirm,
   onCancel,
@@ -127,13 +146,30 @@ export function ApplicationPreviewDialog({
     }
   };
 
+  const handleCopyAnswer = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      show({
+        title: "Copied!",
+        description: `Answer for ${key.replace(/_/g, ' ')} copied to clipboard.`,
+        variant: "success",
+      });
+      try {
+        track("application_answer_copied", { jobTitle, company, key }, "app");
+      } catch (_) {}
+    } catch (_) {}
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col p-0">
+      <DialogContent className="sm:max-w-[900px] h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b">
-          <DialogTitle>Review Application Package</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-purple-600" />
+            AI Application Strategy
+          </DialogTitle>
           <DialogDescription>
-            Review your AI-generated CV and Cover Letter before applying.
+            Review the tailored strategy and assets generated for this specific role.
           </DialogDescription>
           <div className="mt-3 flex gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleOpenJobPage} disabled={!jobUrl}>
@@ -219,16 +255,24 @@ export function ApplicationPreviewDialog({
                  )}
             </div>
           ) : (
-            <Tabs defaultValue="cv" className="h-full flex flex-col">
-              <div className="px-6 py-2 border-b bg-muted/20 flex items-center justify-between">
+            <Tabs defaultValue="strategy" className="h-full flex flex-col">
+              <div className="px-6 py-2 border-b bg-muted/20 flex items-center justify-between overflow-x-auto">
                 <TabsList>
+                  <TabsTrigger value="strategy" className="flex items-center gap-2">
+                    <BrainCircuit className="h-4 w-4" />
+                    Strategy & Gap Analysis
+                  </TabsTrigger>
                   <TabsTrigger value="cv" className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    CV / Resume
+                    Tailored CV
                   </TabsTrigger>
                   <TabsTrigger value="cl" className="flex items-center gap-2">
                     <Mail className="h-4 w-4" />
                     Cover Letter
+                  </TabsTrigger>
+                  <TabsTrigger value="copilot" className="flex items-center gap-2">
+                    <Rocket className="h-4 w-4" />
+                    Smart Apply
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-4">
@@ -260,6 +304,111 @@ export function ApplicationPreviewDialog({
                   )}
                 </div>
               </div>
+
+              <TabsContent value="strategy" className="flex-1 p-0 m-0 overflow-hidden bg-gray-50">
+                <ScrollArea className="h-full">
+                  <div className="p-6 max-w-4xl mx-auto space-y-6">
+                    
+                    {/* Hero Strategy Card */}
+                    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 px-6 py-4 border-b flex justify-between items-center">
+                            <div>
+                                <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
+                                    <BrainCircuit className="w-5 h-5 text-purple-600" />
+                                    Strategic Approach
+                                </h3>
+                                <p className="text-sm text-gray-500">How the AI tailored your profile for this role</p>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-sm text-gray-500">Match Confidence</div>
+                                <div className="font-bold text-lg text-green-600">
+                                    {strategicAnalysis?.candidate_match_level || "High"}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Gap Strategy</h4>
+                                <p className="text-gray-900 text-lg leading-relaxed">
+                                    {strategicAnalysis?.gap_strategy || atsAnalysis || "Optimized profile by highlighting transferable skills and aligning keywords with the job description."}
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                                <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
+                                    <h5 className="font-semibold text-blue-800 mb-2">Key Requirements Targeted</h5>
+                                    <div className="flex flex-wrap gap-2">
+                                        {strategicAnalysis?.key_requirements?.map((req, i) => (
+                                            <span key={i} className="bg-white px-2 py-1 rounded text-sm text-blue-700 border border-blue-100 shadow-sm">
+                                                {req}
+                                            </span>
+                                        )) || <span className="text-sm text-blue-600">Standard Role Requirements</span>}
+                                    </div>
+                                </div>
+                                <div className="bg-purple-50 p-4 rounded-md border border-purple-100">
+                                    <h5 className="font-semibold text-purple-800 mb-2">Role Analysis</h5>
+                                    <p className="text-sm text-purple-700">
+                                        Identified as <span className="font-bold">{strategicAnalysis?.role_type || jobTitle || "Professional"}</span> role. 
+                                        Tailored tone and structure accordingly.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Improvements List */}
+                    <div className="space-y-4">
+                        <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-green-600" />
+                            Key Improvements Made
+                        </h3>
+                        {cvImprovements && cvImprovements.length > 0 ? (
+                            <div className="grid gap-4">
+                                {cvImprovements.map((imp, idx) => (
+                                    <div key={idx} className="bg-white p-4 rounded-lg border shadow-sm flex gap-4">
+                                        <div className="mt-1">
+                                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-sm">
+                                                {idx + 1}
+                                            </div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex justify-between items-start">
+                                                <h4 className="font-semibold text-gray-900 capitalize">{imp.type.replace('_', ' ')}</h4>
+                                                {imp.context && <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{imp.context}</span>}
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-1">{imp.reason}</p>
+                                            
+                                            {imp.before && imp.after && (
+                                                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-gray-50 p-3 rounded border">
+                                                    <div>
+                                                        <span className="text-xs font-bold text-red-500 uppercase">Before</span>
+                                                        <p className="text-gray-500 line-through mt-1">{imp.before}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-xs font-bold text-green-600 uppercase">After</span>
+                                                        <p className="text-gray-900 font-medium mt-1">{imp.after}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {imp.added && (
+                                                 <div className="mt-2 text-sm">
+                                                     <span className="text-green-600 font-medium">+ Added: </span>
+                                                     <span className="text-gray-800">{imp.added}</span>
+                                                 </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 bg-white border rounded-lg text-gray-500">
+                                <Sparkles className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                <p>No specific improvement tracking available for this version.</p>
+                            </div>
+                        )}
+                    </div>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
 
               <TabsContent value="cv" className="flex-1 p-0 m-0 overflow-hidden">
                 <ScrollArea className="h-full">
@@ -297,6 +446,51 @@ export function ApplicationPreviewDialog({
                         />
                     )}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="copilot" className="flex-1 p-0 m-0 overflow-hidden bg-gray-50">
+                  <ScrollArea className="h-full p-6">
+                      <div className="space-y-6">
+                          <div className="bg-white p-6 rounded-lg border shadow-sm">
+                              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                  <Rocket className="w-5 h-5 text-purple-600" />
+                                  Application Copilot
+                              </h3>
+                              <p className="text-gray-600 mb-6">
+                                  Use these AI-generated answers to speed up your application. 
+                                  Click the copy button to grab the text, then paste it into the job application form.
+                              </p>
+                              
+                              <div className="grid gap-4">
+                                  {applicationAnswers && Object.entries(applicationAnswers).map(([key, value]) => (
+                                      <div key={key} className="p-4 rounded-md bg-gray-50 border group hover:border-blue-300 transition-colors">
+                                          <div className="flex items-center justify-between mb-2">
+                                              <span className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                                                  {key.replace(/_/g, ' ')}
+                                              </span>
+                                              <Button 
+                                                  variant="ghost" 
+                                                  size="sm" 
+                                                  className="h-8 w-8 p-0 opacity-100 transition-opacity"
+                                                  onClick={() => handleCopyAnswer(value, key)}
+                                                  title="Copy to clipboard"
+                                              >
+                                                  <Copy className="h-4 w-4" />
+                                              </Button>
+                                          </div>
+                                          <p className="text-gray-900 whitespace-pre-wrap text-sm">{value}</p>
+                                      </div>
+                                  ))}
+                                  
+                                  {(!applicationAnswers || Object.keys(applicationAnswers).length === 0) && (
+                                      <div className="text-center py-8 text-gray-500 italic">
+                                          No smart answers generated for this application.
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                  </ScrollArea>
               </TabsContent>
             </Tabs>
           )}

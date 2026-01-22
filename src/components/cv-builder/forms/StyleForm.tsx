@@ -75,6 +75,7 @@ const StyleForm: React.FC = () => {
             <SelectItem value="modern">Modern (Sidebar)</SelectItem>
             <SelectItem value="classic">Classic (Top Down)</SelectItem>
             <SelectItem value="minimal">Minimal</SelectItem>
+            <SelectItem value="creative">Creative</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -10,6 +10,8 @@ import {
   TrendingUp,
   ArrowRight,
   Loader2,
+  Bot,
+  DollarSign
 } from "lucide-react";
 import {
   Card,
@@ -25,6 +27,7 @@ import { useOutletContext } from "react-router-dom";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { analyticsService } from "@/api/services/analytics.service";
 
 export default function Dashboard() {
   const { profile } = useOutletContext<OutletContextType>();
@@ -35,6 +38,8 @@ export default function Dashboard() {
     uploadedAt?: string;
   } | null>(null);
   const [recentMatchesCount, setRecentMatchesCount] = useState(0);
+  const [activeAgents, setActiveAgents] = useState(0);
+  const [marketSalary, setMarketSalary] = useState<string>("Analyzing...");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,7 +60,7 @@ export default function Dashboard() {
         });
       }
 
-      // Load recent matches count from localStorage (same source as Job Matches page)
+      // Load recent matches count from localStorage
       try {
         const cachedMatches = localStorage.getItem("matchedJobs");
         if (cachedMatches) {
@@ -70,6 +75,34 @@ export default function Dashboard() {
         console.error("Error reading cached matches:", e);
         setRecentMatchesCount(0);
       }
+
+      // Load Factory Status (Active Agents)
+      try {
+        const activeResp = await apiClient('/applications/active');
+        const activeData = await activeResp.json();
+        if (activeData.success) {
+            setActiveAgents(activeData.active_applications.length);
+        }
+      } catch (e) {
+        console.error("Error loading factory status:", e);
+      }
+
+      // Load Market Pulse (Salary) if profile has role
+      if (profile?.experience_level || profile?.career_goals) {
+         try {
+            // Simple heuristic to guess role for demo
+            const role = profile.experience_level || "Developer";
+            const stats = await analyticsService.getMarketStats(role, profile.location);
+            if (stats && stats.avg_salary > 0) {
+                setMarketSalary(new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(stats.avg_salary));
+            } else {
+                setMarketSalary("No data yet");
+            }
+         } catch (e) {
+             setMarketSalary("Unavailable");
+         }
+      }
+
     } catch (e) {
       console.error("Error loading dashboard data:", e);
     } finally {
@@ -133,12 +166,71 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-            Dashboard
+            Command Center
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage your job search and applications
+            Overview of your automated job search
           </p>
         </div>
+      </div>
+
+      {/* Command Center Widgets */}
+      <div className="grid md:grid-cols-3 gap-6">
+          {/* Market Pulse Widget */}
+          <Card className="border-l-4 border-l-green-500 shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-2 font-semibold text-green-500">
+                      <TrendingUp className="h-4 w-4" /> Market Pulse
+                  </CardDescription>
+                  <CardTitle className="text-2xl">{marketSalary}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <p className="text-xs text-muted-foreground">Avg. Salary for your role</p>
+                  <Button variant="link" className="p-0 h-auto text-xs mt-2" onClick={() => navigate('/market-pulse')}>
+                      View Analysis &rarr;
+                  </Button>
+              </CardContent>
+          </Card>
+
+          {/* Factory Status Widget */}
+          <Card className="border-l-4 border-l-blue-500 shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-2 font-semibold text-blue-500">
+                      <Bot className="h-4 w-4" /> Application Factory
+                  </CardDescription>
+                  <CardTitle className="text-2xl">
+                      {activeAgents > 0 ? (
+                          <span className="flex items-center gap-2">
+                              {activeAgents} <span className="text-sm font-normal text-muted-foreground">Active Agents</span>
+                          </span>
+                      ) : "Idle"}
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                      {activeAgents > 0 ? "Applications in progress..." : "No active tasks in queue"}
+                  </p>
+                  <Button variant="link" className="p-0 h-auto text-xs mt-2" onClick={() => navigate('/applications')}>
+                      Monitor Queue &rarr;
+                  </Button>
+              </CardContent>
+          </Card>
+
+          {/* Match Radar Widget */}
+          <Card className="border-l-4 border-l-purple-500 shadow-sm bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center gap-2 font-semibold text-purple-500">
+                      <Sparkles className="h-4 w-4" /> Match Radar
+                  </CardDescription>
+                  <CardTitle className="text-2xl">{recentMatchesCount}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <p className="text-xs text-muted-foreground">New opportunities found</p>
+                  <Button variant="link" className="p-0 h-auto text-xs mt-2" onClick={() => navigate('/job-matches')}>
+                      View Matches &rarr;
+                  </Button>
+              </CardContent>
+          </Card>
       </div>
 
       {/* CV Status Card */}
@@ -195,7 +287,7 @@ export default function Dashboard() {
               className="w-full gap-2"
             >
               <Upload className="h-4 w-4" />
-              Upload New CV
+              Manage CVs
             </Button>
           </CardContent>
         </Card>
@@ -204,8 +296,8 @@ export default function Dashboard() {
       {/* Analytics Tab */}
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="overview">Profile Overview</TabsTrigger>
+          <TabsTrigger value="analytics">Deep Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -250,7 +342,7 @@ export default function Dashboard() {
             </div>
 
             <Button
-              onClick={() => navigate("/cv-upload")}
+              onClick={() => navigate("/profile")}
               variant="outline"
               className="w-full gap-2 group-hover:bg-blue-500/10 group-hover:text-blue-400 group-hover:border-blue-500/30 transition-colors"
             >

@@ -2,6 +2,8 @@ import React, { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { useCVStore } from '../../stores/cvStore';
 import ModernTemplate from './templates/ModernTemplate';
+import ClassicTemplate from './templates/ClassicTemplate';
+import MinimalTemplate from './templates/MinimalTemplate';
 import { Button } from '../ui/button';
 import { Download, Loader2 } from 'lucide-react';
 
@@ -37,12 +39,11 @@ const CVPreview: React.FC = () => {
       case 'modern':
         return <ModernTemplate data={data} style={style} />;
       case 'classic':
-        // Placeholder for Classic - falling back to Modern with different style tweaks if we had them
-        // or a separate component. For now, let's reuse Modern but maybe we can add a 'classic' prop later
-        return <ModernTemplate data={data} style={{ ...style, themeColor: '#333' }} />;
+        return <ClassicTemplate data={data} style={style} />;
       case 'minimal':
-         // Placeholder
-        return <ModernTemplate data={data} style={{ ...style, themeColor: '#000' }} />;
+        return <MinimalTemplate data={data} style={style} />;
+      case 'creative':
+        return <CreativeTemplate data={data} style={style} />;
       default:
         return <ModernTemplate data={data} style={style} />;
     }

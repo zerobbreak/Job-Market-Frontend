@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { personalInfoSchema, type PersonalInfoValues } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
+import AIImproveButton from '../AIImproveButton';
 
 const PersonalInfoForm: React.FC = () => {
   const { data, updatePersonalInfo } = useCVStore();
@@ -117,9 +118,19 @@ const PersonalInfoForm: React.FC = () => {
       <div className="space-y-2">
         <div className="flex justify-between items-center">
             <Label htmlFor="summary" className={cn(errors.summary && "text-red-500")}>Professional Summary</Label>
-            <span className={cn("text-xs", (summaryValue?.length || 0) > 500 ? "text-red-500" : "text-muted-foreground")}>
-                {summaryValue?.length || 0}/500
-            </span>
+            <div className="flex items-center gap-2">
+                <AIImproveButton
+                    text={watch('summary') || ''}
+                    section="professional summary"
+                    onImprove={(newText) => {
+                        setValue('summary', newText, { shouldDirty: true });
+                        updatePersonalInfo({ summary: newText });
+                    }} 
+                />
+                <span className={cn("text-xs", (summaryValue?.length || 0) > 500 ? "text-red-500" : "text-muted-foreground")}>
+                    {summaryValue?.length || 0}/500
+                </span>
+            </div>
         </div>
         <Textarea
           id="summary"

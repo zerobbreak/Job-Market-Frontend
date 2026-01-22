@@ -17,6 +17,7 @@ import CVUpload from "./pages/CVUpload";
 import MatchedJobs from "./pages/MatchedJobs";
 import CVEditor from "./pages/CVEditor";
 import AdminDashboard from "./pages/AdminDashboard";
+import MarketPulse from "./pages/MarketPulse";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -91,6 +92,7 @@ function App() {
         <Route path="/applications" element={<Applications />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/cv-editor" element={<CVEditor />} />
+        <Route path="/market-pulse" element={<MarketPulse />} />
         <Route path="/admin" element={<AdminDashboard />} />
       </Route>
 

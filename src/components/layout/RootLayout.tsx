@@ -11,6 +11,7 @@ import {
   Briefcase,
   Upload,
   PenTool,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";

@@ -61,7 +61,7 @@ export interface CVStyle {
   themeColor: string;
   fontFamily: string;
   fontSize: 'small' | 'medium' | 'large';
-  layout: 'modern' | 'classic' | 'minimal';
+  layout: 'modern' | 'classic' | 'minimal' | 'creative';
 }
 
 interface CVState {

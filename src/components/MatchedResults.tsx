@@ -75,6 +75,7 @@ export default function MatchedResults({
   setMinMatchScore,
   findMatches,
   handleApply,
+  onAutoApplyAll,
   isLoading = false,
 }: {
   filteredMatchedJobs: MatchedJob[];
@@ -82,10 +83,17 @@ export default function MatchedResults({
   setMinMatchScore: (v: number) => void;
   findMatches: () => void;
   handleApply: (job: Job) => void;
+  onAutoApplyAll?: (jobs: Job[]) => void;
   isLoading?: boolean;
 }) {
   const toast = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+
+  const handleBatchApply = () => {
+    if (onAutoApplyAll) {
+      onAutoApplyAll(filteredMatchedJobs.slice(0, 5).map((match) => match.job));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -103,11 +111,23 @@ export default function MatchedResults({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {/* Batch Apply Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBatchApply}
+            disabled={!onAutoApplyAll || filteredMatchedJobs.length === 0}
+            className="gap-2 hidden md:flex"
+          >
+            <Sparkles className="h-4 w-4 text-purple-500" />
+            Auto-Apply Top 5
+          </Button>
+
           {/* Refresh Button */}
           <Button
             variant="outline"
             size="sm"
-            onClick={findMatches}
+            onClick={() => findMatches(true)}
             disabled={isLoading}
             className="gap-2"
           >
