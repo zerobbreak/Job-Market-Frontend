@@ -257,9 +257,23 @@ export default function CVUpload() {
         body: JSON.stringify({
           location: "South Africa",
           max_results: 20,
-          use_demo: false,
+          min_score: 0.0,
+          force_refresh: true, // Force fresh search after CV upload
         }),
       });
+
+      // Handle 429 status (duplicate request)
+      if (response.status === 429) {
+        await response.json();
+        setCvList((prev) =>
+          prev.map((cv) =>
+            cv.fileId === cvStatus.fileId
+              ? { ...cv, matchingStatus: "error", error: "Search already in progress. Please wait." }
+              : cv
+          )
+        );
+        return;
+      }
 
       const data = await response.json();
 
@@ -391,7 +405,7 @@ export default function CVUpload() {
     });
   };
 
-  const handleViewCV = async (fileId: string, url: string) => {
+  const handleViewCV = async (_fileId: string, url: string) => {
     try {
         // Verify file exists before opening
         const response = await fetch(url, { method: 'HEAD' });

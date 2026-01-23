@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import {
-  Search,
-  FileText,
-  User,
   LogOut,
   Menu,
-  Sparkles,
-  LayoutDashboard,
+  Gem,
   Briefcase,
-  Upload,
-  PenTool,
+  BarChart3,
+  ShieldCheck,
+  TrendingUp,
+  Settings,
+  FileEdit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -41,6 +40,7 @@ export default function RootLayout() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const tab = new URLSearchParams(location.search).get("tab");
 
   // Load profile data when user is authenticated
   useEffect(() => {
@@ -69,86 +69,86 @@ export default function RootLayout() {
   }, [user]);
 
   const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "My CV", href: "/cv-upload", icon: Upload },
-    { name: "CV Editor", href: "/cv-editor", icon: PenTool },
-    { name: "Job Matches", href: "/job-matches", icon: Briefcase },
-    { name: "Find Jobs", href: "/search", icon: Search },
-    { name: "Applications", href: "/applications", icon: FileText },
-    { name: "Profile", href: "/profile", icon: User },
+    { name: "Job Feed", href: "/dashboard", icon: Briefcase, dashboardTab: "job-feed" as const },
+    { name: "Smart CV Editor", href: "/dashboard?tab=cv-editor", icon: FileEdit, dashboardTab: "cv-editor" as const },
+    { name: "Agent Activity", href: "/applications", icon: BarChart3 },
+    { name: "Top Matches", href: "/job-matches", icon: ShieldCheck },
+    { name: "Market Insights", href: "/search", icon: TrendingUp },
+    { name: "Settings", href: "/profile", icon: Settings },
   ];
 
   return (
-    <div className="dark min-h-screen bg-background text-foreground flex">
-      {/* Desktop Sidebar - Visible on Medium Screens and Up */}
-      <aside className="hidden md:flex w-72 flex-col bg-sidebar border-r border-sidebar-border shrink-0 text-sidebar-foreground">
+    <div className="dark min-h-screen bg-[#1A1A2E] text-foreground flex">
+      {/* Desktop Sidebar - Cockpit AI style */}
+      <aside className="hidden md:flex w-72 flex-col bg-[#16162a] border-r border-white/10 shrink-0">
         <div className="p-6 flex items-center gap-3">
-          <div className="bg-linear-to-br from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
-            <Sparkles className="h-6 w-6 text-white" />
+          <div className="p-2 rounded-xl bg-[#3b82f6] shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+            <Gem className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Job Market
-            </h1>
-            <p className="text-xs text-muted-foreground">AI Agent</p>
+            <h1 className="text-xl font-bold text-white">Cockpit AI</h1>
+            <p className="text-xs text-zinc-400">AGENT ACTIVE</p>
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
+            const isDashboard = "dashboardTab" in item;
+            const active = isDashboard && location.pathname === "/dashboard"
+              ? (item.dashboardTab === "job-feed" && (!tab || tab === "job-feed")) ||
+                (item.dashboardTab === "cv-editor" && (tab === "cv-editor" || tab === "cv-analysis"))
+              : null;
+            const isDashboardActive = active === true;
+            if (isDashboard) {
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200",
+                    isDashboardActive ? "bg-[#3b82f6] text-white" : "text-zinc-300 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  {item.name}
+                </Link>
+              );
+            }
             return (
               <NavLink
                 key={item.name}
                 to={item.href}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-lg shadow-black/20"
-                      : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200",
+                    isActive ? "bg-[#3b82f6] text-white" : "text-zinc-300 hover:bg-white/5 hover:text-white"
                   )
                 }
               >
-                <Icon
-                  className={cn(
-                    "h-5 w-5",
-                    location.pathname === item.href
-                      ? "text-sidebar-primary"
-                      : "text-muted-foreground group-hover:text-sidebar-primary"
-                  )}
-                />
+                <Icon className="h-5 w-5 shrink-0" />
                 {item.name}
               </NavLink>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border mt-auto">
-          <div className="bg-sidebar-accent/50 rounded-xl p-4 mb-4 backdrop-blur-md border border-sidebar-border/50">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-10 w-10 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-inner">
-                {user?.name?.[0] || "U"}
-              </div>
-              <div className="overflow-hidden">
-                <p className="font-medium text-sm text-sidebar-foreground truncate">
-                  {user?.name}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {user?.email}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-              onClick={logout}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+        <div className="p-4 border-t border-white/10 space-y-3">
+          <div className="rounded-xl bg-[#1e1e36] border border-white/10 p-4">
+            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3">Pro Plan Status</p>
+            <Button className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-xl h-11">
+              Upgrade Account
             </Button>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+            onClick={logout}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       </aside>
 
@@ -171,25 +171,45 @@ export default function RootLayout() {
         {/* Sidebar Panel */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border transform transition-transform duration-300 ease-in-out flex flex-col text-sidebar-foreground",
+            "fixed inset-y-0 left-0 z-50 w-72 bg-[#16162a] border-r border-white/10 transform transition-transform duration-300 ease-in-out flex flex-col",
             isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
           <div className="p-6 flex items-center gap-3">
-            <div className="bg-linear-to-br from-blue-600 to-purple-600 p-2 rounded-xl shadow-lg shadow-blue-900/20">
-              <Sparkles className="h-6 w-6 text-white" />
+            <div className="p-2 rounded-xl bg-[#3b82f6] shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+              <Gem className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Job Market
-              </h1>
-              <p className="text-xs text-zinc-400">AI Agent</p>
+              <h1 className="text-xl font-bold text-white">Cockpit AI</h1>
+              <p className="text-xs text-zinc-400">AGENT ACTIVE</p>
             </div>
           </div>
 
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
+              const isDashboard = "dashboardTab" in item;
+              const active = isDashboard && location.pathname === "/dashboard"
+                ? (item.dashboardTab === "job-feed" && (!tab || tab === "job-feed")) ||
+                  (item.dashboardTab === "cv-editor" && (tab === "cv-editor" || tab === "cv-analysis"))
+                : null;
+              const isDashboardActive = active === true;
+              if (isDashboard) {
+                return (
+                  <Link
+                    key={`mobile-${item.name}`}
+                    to={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200",
+                      isDashboardActive ? "bg-[#3b82f6] text-white" : "text-zinc-300 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {item.name}
+                  </Link>
+                );
+              }
               return (
                 <NavLink
                   key={`mobile-${item.name}`}
@@ -197,68 +217,51 @@ export default function RootLayout() {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group",
-                      isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-lg shadow-black/20"
-                        : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200",
+                      isActive ? "bg-[#3b82f6] text-white" : "text-zinc-300 hover:bg-white/5 hover:text-white"
                     )
                   }
                 >
-                  <Icon
-                    className={cn(
-                      "h-5 w-5",
-                      location.pathname === item.href
-                        ? "text-sidebar-primary"
-                        : "text-muted-foreground group-hover:text-sidebar-primary"
-                    )}
-                  />
+                  <Icon className="h-5 w-5 shrink-0" />
                   {item.name}
                 </NavLink>
               );
             })}
           </nav>
 
-          <div className="p-4 border-t border-sidebar-border mt-auto">
-            <div className="bg-sidebar-accent/50 rounded-xl p-4 mb-4 backdrop-blur-md border border-sidebar-border/50">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-inner">
-                  {user?.name?.[0] || "U"}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="font-medium text-sm text-sidebar-foreground truncate">
-                    {user?.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user?.email}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
-                onClick={logout}
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+          <div className="p-4 border-t border-white/10 space-y-3">
+            <div className="rounded-xl bg-[#1e1e36] border border-white/10 p-4">
+              <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-3">Pro Plan Status</p>
+              <Button className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-xl h-11">
+                Upgrade Account
               </Button>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+              onClick={logout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </aside>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-background/50">
-        <header className="md:hidden h-16 border-b bg-background/80 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#1A1A2E]">
+        <header className="md:hidden h-16 border-b border-white/10 bg-[#16162a]/95 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <div className="bg-linear-to-br from-blue-600 to-purple-600 p-1.5 rounded-lg">
-              <Sparkles className="h-5 w-5 text-white" />
+            <div className="p-1.5 rounded-lg bg-[#3b82f6]">
+              <Gem className="h-5 w-5 text-white" />
             </div>
-            <span className="font-semibold">Job Market Agent</span>
+            <span className="font-semibold text-white">Cockpit AI</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
+            className="text-zinc-300"
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="h-6 w-6" />

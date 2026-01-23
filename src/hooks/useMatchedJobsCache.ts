@@ -14,6 +14,31 @@ export function clearMatchedJobsCache() {
   }
 }
 
+export interface MatchedJobFromStorage {
+  job: { id: string; title: string; company: string; location: string; description: string; url: string };
+  match_score: number;
+  match_reasons: string[];
+}
+
+/**
+ * Read matched jobs from localStorage (used as fallback when API cache is empty)
+ */
+export function getMatchedJobsFromLocalStorage(): {
+  jobs: MatchedJobFromStorage[];
+  location: string;
+} | null {
+  try {
+    const raw = localStorage.getItem("matchedJobs");
+    const loc = localStorage.getItem("matchedJobsLocation") ?? "";
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return { jobs: parsed, location: loc };
+  } catch {
+    return null;
+  }
+}
+
 interface MatchedJob {
   job: {
     id: string;
@@ -27,43 +52,29 @@ interface MatchedJob {
   match_reasons: string[];
 }
 
+/**
+ * Hook to persist matched jobs to localStorage as a backup cache
+ * Note: Primary cache is now handled by the API (backend cache)
+ * This localStorage cache is used as a fallback/backup
+ */
 export function useMatchedJobsCache(
   matchedJobs: MatchedJob[],
   location: string,
-  setMatchedJobs: (jobs: MatchedJob[]) => void
+  _setMatchedJobs: (jobs: MatchedJob[]) => void
 ) {
-  // Load cached matches from localStorage on mount
-  useEffect(() => {
-    const loadCachedMatches = () => {
-      try {
-        const cachedData = localStorage.getItem("matchedJobs");
-        const cachedLocation = localStorage.getItem("matchedJobsLocation");
+  // Note: We no longer load from localStorage on mount since useJobMatching
+  // now loads from the API cache (GET /match-jobs) which is the primary source.
+  // localStorage is only used as a backup/persistence layer.
 
-        if (cachedData && cachedLocation === location) {
-          const parsed = JSON.parse(cachedData);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setMatchedJobs(parsed);
-            console.log("Loaded cached matches:", parsed.length);
-          }
-        }
-      } catch (e) {
-        console.error("Error loading cached matches:", e);
-      }
-    };
-
-    loadCachedMatches();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
-
-  // Save matches to localStorage whenever they change
+  // Save matches to localStorage whenever they change (as backup)
   useEffect(() => {
     if (matchedJobs.length > 0) {
       try {
         localStorage.setItem("matchedJobs", JSON.stringify(matchedJobs));
         localStorage.setItem("matchedJobsLocation", location);
-        console.log("Cached matches:", matchedJobs.length);
+        console.log("Backed up matches to localStorage:", matchedJobs.length);
       } catch (e) {
-        console.error("Error caching matches:", e);
+        console.error("Error backing up matches to localStorage:", e);
       }
     }
   }, [matchedJobs, location]);

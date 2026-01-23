@@ -52,8 +52,20 @@ export default function JobSearch() {
         try {
           const matchResp = await apiClient("/match-jobs", {
             method: "POST",
-            body: JSON.stringify({ location, max_results: 10 }),
+            body: JSON.stringify({ 
+              location, 
+              max_results: 10,
+              min_score: 0.0,
+              force_refresh: true, // Force fresh search for job search page
+            }),
           });
+          
+          // Handle 429 status (duplicate request)
+          if (matchResp.status === 429) {
+            console.log("Search already in progress");
+            return;
+          }
+          
           const matchData = await matchResp.json();
           if (
             matchData.success &&

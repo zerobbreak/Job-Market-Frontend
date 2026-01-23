@@ -4,11 +4,13 @@ import { useJobMatching } from "@/hooks/useJobMatching";
 import { useJobApplication } from "@/hooks/useJobApplication";
 import { useMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
 import { MatchedJobsHeader } from "@/components/matched-jobs/MatchedJobsHeader";
+import { SearchInProgressBanner } from "@/components/matched-jobs/SearchInProgressBanner";
 import { ApplicationStatusBanner } from "@/components/matched-jobs/ApplicationStatusBanner";
 import { TemplateSelectionDialog } from "@/components/matched-jobs/TemplateSelectionDialog";
 import { ApplicationPreviewDialog } from "@/components/matched-jobs/ApplicationPreviewDialog";
 import { EmptyState } from "@/components/matched-jobs/EmptyState";
-import MatchedResults from "@/components/MatchedResults";
+import { MatchedJobsDetailLayout } from "@/components/matched-jobs/MatchedJobsDetailLayout";
+import type { PipelineJob } from "@/components/matched-jobs/HighMatchPipelineSidebar";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function MatchedJobs() {
@@ -19,7 +21,9 @@ export default function MatchedJobs() {
     matchedJobs,
     setMatchedJobs,
     loading,
+    cacheLoading,
     error: matchingError,
+    message,
     location,
     minMatchScore,
     setMinMatchScore,
@@ -66,6 +70,8 @@ export default function MatchedJobs() {
         hasProfile={!!profile}
       />
 
+      <SearchInProgressBanner loading={loading} />
+
       <ApplicationStatusBanner
         applying={applying}
         applyAttempts={applyAttempts}
@@ -78,16 +84,18 @@ export default function MatchedJobs() {
       {/* Results Area */}
       <ErrorBoundary>
       <div className="min-h-[400px]">
-        {!loading && matchedJobs.length === 0 && <EmptyState />}
+        {!loading && !cacheLoading && matchedJobs.length === 0 && (
+          <EmptyState message={message} onSearch={() => findMatches(true)} />
+        )}
 
-        {(loading || matchedJobs.length > 0) && (
-            <MatchedResults
-              filteredMatchedJobs={filteredMatchedJobs}
+        {(loading || cacheLoading || matchedJobs.length > 0) && (
+            <MatchedJobsDetailLayout
+              filteredMatchedJobs={filteredMatchedJobs as PipelineJob[]}
               minMatchScore={minMatchScore}
               setMinMatchScore={setMinMatchScore}
               findMatches={findMatches}
               handleApply={handleApply}
-              isLoading={loading}
+              isLoading={loading || cacheLoading}
             />
         )}
       </div>

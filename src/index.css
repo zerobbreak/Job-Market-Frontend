@@ -172,6 +172,13 @@
 }
 
 .dark {
+  /* Cockpit AI / Dark Theme - Deep & Premium */
+  --cockpit-bg: #1A1A2E;
+  --cockpit-sidebar: #16162a;
+  --cockpit-card: #1e1e36;
+  --cockpit-accent: #3b82f6;
+  --cockpit-muted: #a78bfa;
+
   /* Dark Theme Palette - Deep & Premium */
   --background: oklch(0.1 0.03 260); /* Deep Navy/Black */
   --foreground: oklch(0.98 0 0); /* Pure White */

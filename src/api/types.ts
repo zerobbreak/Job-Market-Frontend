@@ -57,3 +57,41 @@ export interface APIResponse<T = any> {
   data?: T;
   error?: string;
 }
+
+/** CV Analysis API – uploaded document + AI analysis */
+export interface CVAnalysisUploadedDocument {
+  candidate_name: string;
+  role_type: string;
+  professional_summary: string;
+  core_skills: string[];
+  experience: string;
+  skill_density_alignment: number;
+  cv_filename: string;
+  uploaded_at: string;
+}
+
+export interface CVAnalysisSkillGap {
+  title: string;
+  impact: 'High' | 'Medium' | 'Low';
+  description: string;
+}
+
+export interface CVAnalysisAI {
+  match_readiness_score: number;
+  match_readiness_message: string;
+  skill_gaps: CVAnalysisSkillGap[];
+}
+
+export interface CVAnalysisParsingStatus {
+  active: boolean;
+  progress: number;
+  message: string;
+}
+
+export interface CVAnalysisResponse {
+  success: boolean;
+  uploaded_document: CVAnalysisUploadedDocument | null;
+  ai_analysis: CVAnalysisAI | null;
+  parsing_status?: CVAnalysisParsingStatus;
+  error?: string;
+}

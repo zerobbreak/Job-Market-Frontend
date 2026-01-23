@@ -80,7 +80,7 @@ export default function MatchedResults({
   filteredMatchedJobs: MatchedJob[];
   minMatchScore: number;
   setMinMatchScore: (v: number) => void;
-  findMatches: () => void;
+  findMatches: (forceRefresh?: boolean) => void;
   handleApply: (job: Job) => void;
   isLoading?: boolean;
 }) {
@@ -103,11 +103,11 @@ export default function MatchedResults({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Refresh Button */}
+          {/* Refresh Button - search action: force_refresh true */}
           <Button
             variant="outline"
             size="sm"
-            onClick={findMatches}
+            onClick={() => findMatches(true)}
             disabled={isLoading}
             className="gap-2"
           >
@@ -202,7 +202,7 @@ export default function MatchedResults({
                 location
               </p>
             </div>
-            <Button onClick={findMatches} variant="outline">
+            <Button onClick={() => findMatches(true)} variant="outline">
               Search Again
             </Button>
           </div>

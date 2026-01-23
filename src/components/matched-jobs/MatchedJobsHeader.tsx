@@ -31,11 +31,16 @@ export function MatchedJobsHeader({
           className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] transition-all"
         >
           {loading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Searching...
+            </>
           ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh Matches
+            </>
           )}
-          Refresh Matches
         </Button>
       </div>
     </div>
