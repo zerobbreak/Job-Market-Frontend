@@ -1,5 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { FileText, Upload, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
+import {
+  FileText,
+  Upload,
+  AlertTriangle,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -51,12 +57,12 @@ function highlightSummary(text: string) {
     <>
       {segs.map((p, i) =>
         p.hi ? (
-          <span key={i} className="text-[#3b82f6] font-medium">
+          <span key={i} className="text-primary font-medium">
             {p.s}
           </span>
         ) : (
           <span key={i}>{p.s}</span>
-        )
+        ),
       )}
     </>
   );
@@ -65,13 +71,13 @@ function highlightSummary(text: string) {
 function impactToClass(impact: string): string {
   switch (impact) {
     case "High":
-      return "bg-[#a78bfa]/20 text-[#a78bfa] border-[#a78bfa]/40";
+      return "bg-accent/20 text-accent border-accent/40";
     case "Medium":
       return "bg-amber-500/20 text-amber-400 border-amber-500/40";
     case "Low":
       return "bg-zinc-500/20 text-zinc-400 border-zinc-500/40";
     default:
-      return "bg-[#a78bfa]/20 text-[#a78bfa] border-[#a78bfa]/40";
+      return "bg-accent/20 text-accent border-accent/40";
   }
 }
 
@@ -96,7 +102,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
         <div className="grid lg:grid-cols-5 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <Skeleton className="h-6 w-32 bg-white/10" />
-            <Card className="border-white/10 bg-[#1e1e36]">
+            <Card className="glass-card border-transparent">
               <CardContent className="p-6 space-y-5">
                 <Skeleton className="h-7 w-48 bg-white/10" />
                 <Skeleton className="h-4 w-36 bg-white/10" />
@@ -107,7 +113,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
           </div>
           <div className="lg:col-span-3 space-y-4">
             <Skeleton className="h-6 w-24 bg-white/10" />
-            <Card className="border-white/10 bg-[#1e1e36]">
+            <Card className="glass-card border-transparent">
               <CardContent className="p-6 flex items-center gap-6">
                 <Skeleton className="h-28 w-28 rounded-full bg-white/10" />
                 <div className="space-y-2 flex-1">
@@ -129,10 +135,11 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
         <FileText className="h-14 w-14 text-zinc-500 mb-4" />
         <h3 className="text-lg font-semibold text-white mb-2">No CV on file</h3>
         <p className="text-zinc-400 mb-6 max-w-md">
-          Upload a CV to see your parsed details, match readiness score, and AI-generated skill gaps.
+          Upload a CV to see your parsed details, match readiness score, and
+          AI-generated skill gaps.
         </p>
         <Button
-          className="bg-[#3b82f6] hover:bg-[#2563eb]"
+          className="bg-primary hover:bg-primary/90"
           onClick={() => navigate("/cv-upload")}
         >
           <Upload className="h-4 w-4 mr-2" />
@@ -145,7 +152,9 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] p-6 text-center animate-fade-in">
         <AlertTriangle className="h-14 w-14 text-amber-500 mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">Could not load analysis</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">
+          Could not load analysis
+        </h3>
         <p className="text-zinc-400 mb-6 max-w-md">
           {(error as Error)?.message || "Something went wrong. Try again."}
         </p>
@@ -191,12 +200,14 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
     <div className="space-y-6 animate-fade-in">
       {parsing && (
         <div className="flex justify-end">
-          <Card className="border-white/10 bg-[#1e1e36] px-4 py-2">
+          <Card className="glass-card border-transparent px-4 py-2">
             <div className="flex items-center gap-2">
               {(parsing.progress ?? 100) < 100 ? (
-                <Loader2 className="h-4 w-4 text-[#a78bfa] animate-spin" />
+                <Loader2 className="h-4 w-4 text-accent animate-spin" />
               ) : null}
-              <span className="text-xs font-medium text-zinc-400">CV PARSING ACTIVE</span>
+              <span className="text-xs font-medium text-zinc-400">
+                CV PARSING ACTIVE
+              </span>
               <span className="text-xs text-zinc-500">•</span>
               <span className="text-xs text-zinc-300">
                 {parsing.message || "Complete"} {parsing.progress ?? 100}%
@@ -211,7 +222,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#a78bfa]" />
+              <FileText className="h-5 w-5 text-accent" />
               Uploaded Document
             </h2>
             <Button
@@ -224,7 +235,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
               Update CV
             </Button>
           </div>
-          <Card className="border-white/10 bg-[#1e1e36] overflow-hidden">
+          <Card className="glass-card border-transparent overflow-hidden">
             <CardContent className="p-6 space-y-5">
               <div>
                 <h3 className="text-xl font-bold text-white uppercase tracking-wide">
@@ -255,10 +266,10 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
                         className={cn(
                           "px-2.5 py-1 rounded-md text-xs font-medium",
                           HIGHLIGHT_TERMS.some((t) =>
-                            String(s).toLowerCase().includes(t)
+                            String(s).toLowerCase().includes(t),
                           )
-                            ? "bg-[#3b82f6]/20 text-[#3b82f6]"
-                            : "bg-white/5 text-zinc-400"
+                            ? "bg-primary/20 text-primary"
+                            : "bg-white/5 text-zinc-400",
                         )}
                       >
                         {s}
@@ -279,7 +290,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
                 </p>
                 <Progress
                   value={doc.skill_density_alignment ?? 0}
-                  className="h-2 bg-white/10 [&>div]:bg-[#a78bfa]"
+                  className="h-2 bg-white/10 [&>div]:bg-accent"
                 />
               </div>
             </CardContent>
@@ -289,10 +300,10 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
         {/* AI Analysis */}
         <div className="lg:col-span-3 space-y-4">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-[#a78bfa]" />
+            <Sparkles className="h-5 w-5 text-accent" />
             AI Analysis
           </h2>
-          <Card className="border-white/10 bg-[#1e1e36]">
+          <Card className="glass-card border-transparent">
             <CardContent className="p-6">
               {ai ? (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-6">
@@ -302,10 +313,12 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
                         "w-28 h-28 rounded-full flex flex-col items-center justify-center border-2",
                         score >= 80
                           ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
-                          : "bg-[#a78bfa]/10 border-[#a78bfa]/40 text-[#a78bfa]"
+                          : "bg-accent/10 border-accent/40 text-accent",
                       )}
                     >
-                      <span className="text-3xl font-bold leading-none">{score}%</span>
+                      <span className="text-3xl font-bold leading-none">
+                        {score}%
+                      </span>
                     </div>
                   </div>
                   <div>
@@ -320,8 +333,10 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
               ) : (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-6">
                   <div className="flex items-center justify-center shrink-0">
-                    <div className="w-28 h-28 rounded-full flex flex-col items-center justify-center border-2 bg-[#a78bfa]/10 border-[#a78bfa]/40 text-[#a78bfa]">
-                      <span className="text-3xl font-bold leading-none">{score}%</span>
+                    <div className="w-28 h-28 rounded-full flex flex-col items-center justify-center border-2 bg-accent/10 border-accent/40 text-accent">
+                      <span className="text-3xl font-bold leading-none">
+                        {score}%
+                      </span>
                     </div>
                   </div>
                   <div>
@@ -329,7 +344,8 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
                       Match Readiness
                     </p>
                     <p className="text-sm text-zinc-300">
-                      AI analysis is temporarily unavailable. Score is based on profile completeness.
+                      AI analysis is temporarily unavailable. Score is based on
+                      profile completeness.
                     </p>
                   </div>
                 </div>
@@ -347,14 +363,14 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
                 {ai.skill_gaps.map((gap: CVAnalysisSkillGap, i: number) => (
                   <Card
                     key={i}
-                    className="border-white/10 bg-[#1e1e36] hover:border-[#a78bfa]/30 transition-colors"
+                    className="glass-card border-transparent hover:border-accent/30 transition-colors"
                   >
                     <CardContent className="p-4">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span
                           className={cn(
                             "px-2 py-0.5 rounded-md text-xs font-semibold border",
-                            impactToClass(gap.impact)
+                            impactToClass(gap.impact),
                           )}
                         >
                           {impactLabel(gap.impact)}
@@ -369,7 +385,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
                 ))}
               </div>
             ) : (
-              <Card className="border-white/10 bg-[#1e1e36]">
+              <Card className="glass-card border-transparent">
                 <CardContent className="p-6 text-center">
                   <p className="text-sm text-zinc-400">
                     {ai

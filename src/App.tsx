@@ -9,7 +9,7 @@ import Register from "./components/Register";
 import ResetPassword from "./components/ResetPassword";
 import RootLayout from "./components/layout/RootLayout";
 import Dashboard from "./pages/Dashboard";
-import JobSearch from "./pages/JobSearch";
+import MarketInsights from "./pages/MarketInsights";
 import Applications from "./pages/Applications";
 import Profile from "./pages/Profile";
 import LandingPage from "./pages/LandingPage";
@@ -43,60 +43,60 @@ function App() {
     <ErrorBoundary>
       <Routes>
         {/* Public Routes */}
-      <Route
-        path="/"
-        element={
-          <GuestRoute>
-            <LandingPage />
-          </GuestRoute>
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <GuestRoute>
-            <Login />
-          </GuestRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <GuestRoute>
-            <Register />
-          </GuestRoute>
-        }
-      />
-      <Route
-        path="/reset-password"
-        element={
-          <GuestRoute>
-            <ResetPassword />
-          </GuestRoute>
-        }
-      />
+        <Route
+          path="/"
+          element={
+            <GuestRoute>
+              <LandingPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <GuestRoute>
+              <Login />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <GuestRoute>
+              <Register />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <GuestRoute>
+              <ResetPassword />
+            </GuestRoute>
+          }
+        />
 
-      {/* Protected Routes */}
-      <Route
-        element={
-          <RequireAuth>
-            <RootLayout />
-          </RequireAuth>
-        }
-      >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/cv-upload" element={<CVUpload />} />
-        <Route path="/job-matches" element={<MatchedJobs />} />
-        <Route path="/search" element={<JobSearch />} />
-        <Route path="/applications" element={<Applications />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/cv-editor" element={<CVEditor />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-      </Route>
+        {/* Protected Routes */}
+        <Route
+          element={
+            <RequireAuth>
+              <RootLayout />
+            </RequireAuth>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/cv-upload" element={<CVUpload />} />
+          <Route path="/job-matches" element={<MatchedJobs />} />
+          <Route path="/market-insights" element={<MarketInsights />} />
+          <Route path="/applications" element={<Applications />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/cv-editor" element={<CVEditor />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </ErrorBoundary>
   );
 }

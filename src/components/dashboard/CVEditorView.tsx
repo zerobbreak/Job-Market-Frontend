@@ -12,7 +12,6 @@ import {
   Globe,
   Loader2,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { OutletContextType } from "@/components/layout/RootLayout";
@@ -37,36 +36,44 @@ function RegenerateButton({ navigate }: { navigate: (path: string) => void }) {
   const handleRegenerate = async () => {
     try {
       setIsRegenerating(true);
-      
+
       const response = await apiClient("/regenerate-cv", {
         method: "POST",
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
         throw new Error(errorData.error || "Failed to regenerate CV");
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         // Update CV store with optimized summary if available
         if (data.optimized_cv) {
           // Extract summary from optimized CV
-          const summaryMatch = data.optimized_cv.match(/##\s*SUMMARY\s*\n([^\n]+(?:\n[^\n]+)*?)(?=\n##|\n\n\n|$)/i) ||
-                            data.optimized_cv.match(/##\s*PROFESSIONAL\s+SUMMARY\s*\n([^\n]+(?:\n[^\n]+)*?)(?=\n##|\n\n\n|$)/i);
+          const summaryMatch =
+            data.optimized_cv.match(
+              /##\s*SUMMARY\s*\n([^\n]+(?:\n[^\n]+)*?)(?=\n##|\n\n\n|$)/i,
+            ) ||
+            data.optimized_cv.match(
+              /##\s*PROFESSIONAL\s+SUMMARY\s*\n([^\n]+(?:\n[^\n]+)*?)(?=\n##|\n\n\n|$)/i,
+            );
           if (summaryMatch) {
             const optimizedSummary = summaryMatch[1].trim();
             updatePersonalInfo({ summary: optimizedSummary });
           }
         }
-        
+
         // Show success message
-        const message = data.message || 
-          `Injected ${data.keyword_matches?.length || 0} keywords and improved ATS score to ${data.ats_score || 'N/A'}.`;
-        
+        const message =
+          data.message ||
+          `Injected ${data.keyword_matches?.length || 0} keywords and improved ATS score to ${data.ats_score || "N/A"}.`;
+
         alert(`CV optimized successfully!\n\n${message}`);
-        
+
         // Navigate to CV editor to see changes
         navigate("/cv-editor");
       } else {
@@ -74,7 +81,7 @@ function RegenerateButton({ navigate }: { navigate: (path: string) => void }) {
       }
     } catch (error: any) {
       console.error("Error regenerating CV:", error);
-      alert(`Error: ${error.message || 'Failed to regenerate CV'}`);
+      alert(`Error: ${error.message || "Failed to regenerate CV"}`);
     } finally {
       setIsRegenerating(false);
     }
@@ -82,7 +89,7 @@ function RegenerateButton({ navigate }: { navigate: (path: string) => void }) {
 
   return (
     <Button
-      className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white disabled:opacity-50"
+      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
       onClick={handleRegenerate}
       disabled={isRegenerating}
     >
@@ -111,7 +118,10 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
   const jobTitle =
     cvData.personalInfo.jobTitle || profile?.experience_level || "";
   const summary =
-    cvData.personalInfo.summary || profile?.career_goals || profile?.strengths?.join(". ") || "";
+    cvData.personalInfo.summary ||
+    profile?.career_goals ||
+    profile?.strengths?.join(". ") ||
+    "";
   const skills = profile?.skills?.length
     ? profile.skills
     : cvData.skills.map((s) => s.name).filter(Boolean);
@@ -119,12 +129,13 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
   const github = cvData.personalInfo.github || "";
   const website = cvData.personalInfo.website || "";
 
-  const enhancedSummary = subTab === "ai" && summary
-    ? summary.replace(
-        /cloud infrastructure|distributed systems/gi,
-        (m) => `**${m}**`
-      )
-    : summary;
+  const enhancedSummary =
+    subTab === "ai" && summary
+      ? summary.replace(
+          /cloud infrastructure|distributed systems/gi,
+          (m) => `**${m}**`,
+        )
+      : summary;
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -142,16 +153,16 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
             value={subTab}
             onValueChange={(v) => setSubTab(v as "ai" | "original")}
           >
-            <TabsList className="bg-[#1e1e36] border border-white/10 p-0.5 h-9">
+            <TabsList className="bg-card/50 border border-border p-1 h-11 rounded-lg backdrop-blur-sm">
               <TabsTrigger
                 value="ai"
-                className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white rounded-lg px-4"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-4 font-medium transition-all h-full"
               >
                 AI Enhanced
               </TabsTrigger>
               <TabsTrigger
                 value="original"
-                className="data-[state=active]:bg-[#3b82f6] data-[state=active]:text-white rounded-lg px-4 text-zinc-400"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-4 text-muted-foreground font-medium transition-all h-full"
               >
                 Original
               </TabsTrigger>
@@ -159,7 +170,7 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
           </Tabs>
           <Button
             onClick={() => handlePrint?.()}
-            className="bg-[#3b82f6] hover:bg-[#2563eb] text-white gap-2"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 h-11 px-6 rounded-lg"
           >
             <Download className="h-4 w-4" />
             Export PDF
@@ -170,41 +181,39 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* CV display */}
         <div className="lg:col-span-2">
-          <Card className="border-white/10 bg-[#1e1e36] overflow-hidden">
-            <CardContent className="p-6">
+          <div className="glass-panel border-border/50 rounded-3xl overflow-hidden relative shadow-2xl">
+            <div className="p-8 md:p-12">
               <div ref={printRef} className="print:bg-white print:text-black">
-                <h1 className="text-2xl font-bold text-white print:text-black uppercase tracking-tight mb-1">
+                <h1 className="text-3xl md:text-5xl font-bold text-white print:text-black uppercase tracking-tight mb-2">
                   {name}
                 </h1>
-                <p className="text-[#3b82f6] print:text-blue-700 font-semibold uppercase tracking-wide text-sm mb-4">
+                <p className="text-primary print:text-blue-700 font-semibold uppercase tracking-wide text-sm md:text-base mb-6">
                   {jobTitle || "Professional"}
                 </p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-400 print:text-gray-600 mb-6">
+                <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground print:text-gray-600 mb-10">
                   {location && (
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 shrink-0" />
                       {location}
                     </span>
                   )}
                   {email && (
-                    <span className="flex items-center gap-1.5">
-                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 shrink-0" />
                       {email}
                     </span>
                   )}
                   {phone && (
-                    <span className="flex items-center gap-1.5">
-                      {phone}
-                    </span>
+                    <span className="flex items-center gap-2">{phone}</span>
                   )}
                   {linkedin && (
                     <a
                       href={linkedin}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 hover:text-[#3b82f6]"
+                      className="flex items-center gap-2 hover:text-primary transition-colors"
                     >
-                      <Linkedin className="h-3.5 w-3.5" />
+                      <Linkedin className="h-4 w-4" />
                       LinkedIn
                     </a>
                   )}
@@ -213,9 +222,9 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
                       href={github}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 hover:text-[#3b82f6]"
+                      className="flex items-center gap-2 hover:text-primary transition-colors"
                     >
-                      <Github className="h-3.5 w-3.5" />
+                      <Github className="h-4 w-4" />
                       GitHub
                     </a>
                   )}
@@ -224,32 +233,35 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
                       href={website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 hover:text-[#3b82f6]"
+                      className="flex items-center gap-2 hover:text-primary transition-colors"
                     >
-                      <Globe className="h-3.5 w-3.5" />
+                      <Globe className="h-4 w-4" />
                       Portfolio
                     </a>
                   )}
                 </div>
-                <div className="mb-6">
-                  <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                <div className="mb-10">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span className="w-8 h-px bg-border/50"></span>
                     Strategic Profile
                   </h3>
-                  <p className="text-sm text-zinc-300 print:text-gray-800 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-base text-zinc-300 print:text-gray-800 leading-relaxed whitespace-pre-wrap">
                     {enhancedSummary ? (
                       <>
-                        {enhancedSummary.split(/\*\*(.*?)\*\*/g).map((part, i) =>
-                          i % 2 === 1 ? (
-                            <span
-                              key={i}
-                              className="text-[#3b82f6] print:text-blue-700 font-medium"
-                            >
-                              {part}
-                            </span>
-                          ) : (
-                            <span key={i}>{part}</span>
-                          )
-                        )}
+                        {enhancedSummary
+                          .split(/\*\*(.*?)\*\*/g)
+                          .map((part, i) =>
+                            i % 2 === 1 ? (
+                              <span
+                                key={i}
+                                className="text-primary print:text-blue-700 font-bold bg-primary/10 px-1 rounded"
+                              >
+                                {part}
+                              </span>
+                            ) : (
+                              <span key={i}>{part}</span>
+                            ),
+                          )}
                       </>
                     ) : (
                       "Add a summary in the CV editor or upload a CV."
@@ -258,14 +270,15 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
                 </div>
                 {skills.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2 mt-8">
+                      <span className="w-8 h-px bg-border/50"></span>
                       Core Skills
                     </h3>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2.5">
                       {skills.map((s, i) => (
                         <span
                           key={i}
-                          className="px-2.5 py-1 rounded-md text-xs font-medium bg-white/5 text-zinc-400 print:bg-gray-100 print:text-gray-800"
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/5 text-zinc-300 border border-white/5 print:bg-gray-100 print:text-gray-800 print:border-gray-200"
                         >
                           {s}
                         </span>
@@ -274,47 +287,51 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* Right panels */}
-        <div className="space-y-4">
-          <Card className="border-white/10 bg-[#1e1e36]">
-            <CardContent className="p-4">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-2">
-                <Sparkles className="h-4 w-4 text-[#a78bfa]" />
-                Smart Improvements
-              </h3>
-              <p className="text-sm text-zinc-400 mb-4">
-                We&apos;ve injected <strong className="text-white">12 keywords</strong> and
-                reframed your experience to match 2025 Principal Engineer hiring
-                trends.
-              </p>
-              <RegenerateButton navigate={navigate} />
-            </CardContent>
-          </Card>
-          <Card className="border-white/10 bg-[#1e1e36]">
-            <CardContent className="p-4">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-                <FileText className="h-4 w-4 text-[#a78bfa]" />
-                Suggested Changes
-              </h3>
-              <div className="space-y-2 text-sm">
-                <p className="text-zinc-400">
-                  <span className="font-medium text-white">
-                    {MOCK_SUGGESTED_CHANGE.section}:
-                  </span>{" "}
-                  Reframed from &ldquo;{MOCK_SUGGESTED_CHANGE.from}&rdquo; to
-                  &ldquo;
-                  <span className="text-[#a78bfa]">
-                    {MOCK_SUGGESTED_CHANGE.to}
-                  </span>
-                  &rdquo;.
-                </p>
+        <div className="space-y-6">
+          <div className="glass-card rounded-3xl p-6 border-transparent">
+            <h3 className="text-base font-semibold text-white flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-xl bg-accent/20">
+                <Sparkles className="h-5 w-5 text-accent" />
               </div>
-            </CardContent>
-          </Card>
+              Smart Improvements
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              We&apos;ve injected{" "}
+              <strong className="text-white font-semibold">12 keywords</strong>{" "}
+              and reframed your experience to match 2025 Principal Engineer
+              hiring trends.
+            </p>
+            <RegenerateButton navigate={navigate} />
+          </div>
+          <div className="glass-card rounded-3xl p-6 border-transparent">
+            <h3 className="text-base font-semibold text-white flex items-center gap-2 mb-4">
+              <div className="p-2 rounded-xl bg-primary/20">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              Suggested Changes
+            </h3>
+            <div className="space-y-4 text-sm mt-2">
+              <p className="text-muted-foreground leading-relaxed p-4 rounded-2xl bg-white/5 border border-white/5">
+                <span className="font-semibold text-white uppercase tracking-wider text-xs block mb-2">
+                  {MOCK_SUGGESTED_CHANGE.section}
+                </span>
+                Reframed from{" "}
+                <span className="line-through opacity-70">
+                  &ldquo;{MOCK_SUGGESTED_CHANGE.from}&rdquo;
+                </span>{" "}
+                to{" "}
+                <span className="text-accent font-medium">
+                  &ldquo;{MOCK_SUGGESTED_CHANGE.to}&rdquo;
+                </span>
+                .
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
