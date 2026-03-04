@@ -74,7 +74,7 @@ export default function CVUpload() {
 
       // Fetch from database instead of storage to match backend logic
       // Backend route is /api/list (no /profile prefix)
-      const response = await apiClient("/list", {
+      const response = await apiClient("/profiles", {
         method: "GET",
       });
 
@@ -165,7 +165,7 @@ export default function CVUpload() {
       }
 
       // Backend route is /api/analyze-cv (still correct, no /profile prefix)
-      const response = await apiClient("/analyze-cv", {
+      const response = await apiClient("/profiles/cv/analyze", {
         method: "POST",
         body: formData,
       });
@@ -252,7 +252,7 @@ export default function CVUpload() {
     );
 
     try {
-      const response = await apiClient("/match-jobs", {
+      const response = await apiClient("/jobs/matches", {
         method: "POST",
         body: JSON.stringify({
           location: "South Africa",
@@ -337,7 +337,7 @@ export default function CVUpload() {
 
   const handleSetActive = async (fileId: string) => {
     try {
-      await apiClient(`/profile/${fileId}/active`, {
+      await apiClient(`/profiles/${fileId}/activate`, {
         method: 'PUT'
       });
       
@@ -367,7 +367,7 @@ export default function CVUpload() {
 
     try {
       // Use backend API to delete both storage file and database record
-      await apiClient(`/profile/${deleteDialog.fileId}`, {
+      await apiClient(`/profiles/${deleteDialog.fileId}`, {
         method: "DELETE",
       });
 

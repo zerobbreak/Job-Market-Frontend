@@ -6,7 +6,7 @@ export const cvService = {
    * List all CVs for the current user
    */
   list: async (): Promise<CVProfile[]> => {
-    const response = await apiClient('/profile/list', { method: 'GET' });
+    const response = await apiClient('/profiles', { method: 'GET' });
     const data = await response.json();
     return data.profiles || [];
   },
@@ -21,7 +21,7 @@ export const cvService = {
       formData.append('overwrite', 'true');
     }
 
-    const response = await apiClient('/analyze-cv', {
+    const response = await apiClient('/profiles/cv/analyze', {
       method: 'POST',
       body: formData,
     });
@@ -32,7 +32,7 @@ export const cvService = {
    * Delete a CV by file ID
    */
   delete: async (fileId: string) => {
-    const response = await apiClient(`/profile/${fileId}`, {
+    const response = await apiClient(`/profiles/${fileId}`, {
       method: 'DELETE',
     });
     return response.json();
@@ -42,7 +42,7 @@ export const cvService = {
    * Set a CV as active
    */
   setActive: async (fileId: string) => {
-    const response = await apiClient(`/profile/${fileId}/active`, {
+    const response = await apiClient(`/profiles/${fileId}/activate`, {
       method: 'PUT',
     });
     return response.json();

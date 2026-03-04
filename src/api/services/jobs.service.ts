@@ -19,7 +19,7 @@ export const jobsService = {
    * Get cached job matches (GET request - no API call)
    */
   getCachedMatches: async (): Promise<MatchJobsResponse> => {
-    const response = await apiClient('/match-jobs', {
+    const response = await apiClient('/jobs/matches', {
       method: 'GET',
     });
     if (!response.ok) {
@@ -42,7 +42,7 @@ export const jobsService = {
     min_score?: number;
     force_refresh?: boolean;
   }): Promise<MatchJobsResponse> => {
-    const response = await apiClient('/match-jobs', {
+    const response = await apiClient('/jobs/matches', {
       method: 'POST',
       body: JSON.stringify({
         location: params.location || '',

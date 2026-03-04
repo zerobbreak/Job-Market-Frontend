@@ -9,7 +9,7 @@ import { ApplicationStatusBanner } from "@/components/matched-jobs/ApplicationSt
 import { TemplateSelectionDialog } from "@/components/matched-jobs/TemplateSelectionDialog";
 import { ApplicationPreviewDialog } from "@/components/matched-jobs/ApplicationPreviewDialog";
 import { EmptyState } from "@/components/matched-jobs/EmptyState";
-import { MatchedJobsDetailLayout } from "@/components/matched-jobs/MatchedJobsDetailLayout";
+import { MatchedJobsGridLayout } from "@/components/matched-jobs/MatchedJobsGridLayout";
 import type { PipelineJob } from "@/components/matched-jobs/HighMatchPipelineSidebar";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
@@ -25,8 +25,6 @@ export default function MatchedJobs() {
     error: matchingError,
     message,
     location,
-    minMatchScore,
-    setMinMatchScore,
     findMatches,
     filteredMatchedJobs,
   } = useJobMatching();
@@ -54,7 +52,7 @@ export default function MatchedJobs() {
     initiatePreview,
     handleAutoApply,
     isAutoApplying,
-    automationStatus
+    automationStatus,
   } = useJobApplication();
 
   // Cache management
@@ -83,22 +81,19 @@ export default function MatchedJobs() {
 
       {/* Results Area */}
       <ErrorBoundary>
-      <div className="min-h-[400px]">
-        {!loading && !cacheLoading && matchedJobs.length === 0 && (
-          <EmptyState message={message} onSearch={() => findMatches(true)} />
-        )}
+        <div className="min-h-[400px]">
+          {!loading && !cacheLoading && matchedJobs.length === 0 && (
+            <EmptyState message={message} onSearch={() => findMatches(true)} />
+          )}
 
-        {(loading || cacheLoading || matchedJobs.length > 0) && (
-            <MatchedJobsDetailLayout
+          {(loading || cacheLoading || matchedJobs.length > 0) && (
+            <MatchedJobsGridLayout
               filteredMatchedJobs={filteredMatchedJobs as PipelineJob[]}
-              minMatchScore={minMatchScore}
-              setMinMatchScore={setMinMatchScore}
-              findMatches={findMatches}
               handleApply={handleApply}
               isLoading={loading || cacheLoading}
             />
-        )}
-      </div>
+          )}
+        </div>
       </ErrorBoundary>
 
       <TemplateSelectionDialog

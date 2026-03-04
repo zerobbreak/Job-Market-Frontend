@@ -52,7 +52,7 @@ export default function RootLayout() {
 
       try {
         // Backend route is registered as /api/structured (no /profile prefix)
-        const response = await apiClient("/structured");
+        const response = await apiClient("/profiles/me/structured");
 
         // Response status check is handled inside apiClient (throws on 401)
 

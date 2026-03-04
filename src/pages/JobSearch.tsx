@@ -41,7 +41,7 @@ export default function JobSearch() {
     }
     setLoading(true);
     try {
-      const response = await apiClient("/search-jobs", {
+      const response = await apiClient("/jobs/search", {
         method: "POST",
         body: JSON.stringify({ query: searchQuery, location }),
       });
@@ -50,7 +50,7 @@ export default function JobSearch() {
       setJobs(results);
       if (Array.isArray(results) && results.length === 0) {
         try {
-          const matchResp = await apiClient("/match-jobs", {
+          const matchResp = await apiClient("/jobs/matches", {
             method: "POST",
             body: JSON.stringify({ 
               location, 

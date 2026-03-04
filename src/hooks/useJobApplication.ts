@@ -1,8 +1,8 @@
 /**
  * useJobApplication Hook
- * 
+ *
  * Manages job application state and preview generation.
- * 
+ *
  * IMPORTANT: Hook order must remain constant for React Fast Refresh compatibility.
  * Do not reorder hooks or add conditional hooks.
  */
@@ -65,7 +65,7 @@ export function useJobApplication() {
   // ============================================================================
   // All hooks must be called unconditionally and in the same order every render
   // This ensures React Hooks rules are followed and prevents hook order violations
-  
+
   // Context hooks (always first)
   const toast = useToast();
 
@@ -73,15 +73,19 @@ export function useJobApplication() {
   const [applying, setApplying] = useState(false);
   const [applyAttempts] = useState(0);
   const [applyMaxAttempts] = useState(40);
-  const [currentApplyJobId, setCurrentApplyJobId] = useState<string | null>(null);
+  const [currentApplyJobId, setCurrentApplyJobId] = useState<string | null>(
+    null,
+  );
   const [pendingJob, setPendingJob] = useState<Job | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [applyTemplate, setApplyTemplate] = useState<"MODERN" | "PROFESSIONAL" | "ACADEMIC">("MODERN");
-  const [generatedFiles] = useState<GeneratedFiles | null>(
-    () => loadGeneratedFilesFromStorage()
+  const [applyTemplate, setApplyTemplate] = useState<
+    "MODERN" | "PROFESSIONAL" | "ACADEMIC"
+  >("MODERN");
+  const [generatedFiles] = useState<GeneratedFiles | null>(() =>
+    loadGeneratedFilesFromStorage(),
   );
   const [error, setError] = useState<string>("");
-  
+
   // Preview state hooks (grouped together)
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -94,7 +98,7 @@ export function useJobApplication() {
     atsAnalysis?: string;
     jobId?: string;
   } | null>(null);
-  
+
   // Automation state hooks
   const [isAutoApplying, setIsAutoApplying] = useState(false);
   const [automationStatus, setAutomationStatus] = useState<string>("");
@@ -115,24 +119,27 @@ export function useJobApplication() {
   const confirmApply = async () => {
     if (!pendingJob) return;
     setShowTemplateDialog(false);
-    
+
     // Legacy support: "Confirm" now means "I've applied manually" or "Process Complete"
     // The actual generation happened in initiatePreview
-    
+
     try {
-      track("application_manual_complete", {
-        jobId: pendingJob.id,
-        title: pendingJob.title,
-        company: pendingJob.company,
-        template: applyTemplate,
-      }, "app");
-      
+      track(
+        "application_manual_complete",
+        {
+          jobId: pendingJob.id,
+          title: pendingJob.title,
+          company: pendingJob.company,
+          template: applyTemplate,
+        },
+        "app",
+      );
+
       toast.show({
         title: "Application Recorded",
         description: "Good luck with your application!",
         variant: "success",
       });
-      
     } catch (_) {
       // Ignore tracking errors
     } finally {
@@ -154,43 +161,46 @@ export function useJobApplication() {
     setError("");
 
     try {
-      const startResp = await apiClient("/apply-preview/start", {
+      const startResp = await apiClient("/jobs/apply-preview", {
         method: "POST",
         body: JSON.stringify({
           job: pendingJob,
           template: applyTemplate,
         }),
       });
-      
+
       if (!startResp.ok) {
-          if (startResp.status === 401) {
-              throw new Error("You must be logged in to generate a preview.");
-          }
-          const errorText = await startResp.text();
-          throw new Error(`Server error: ${startResp.status} - ${errorText}`);
+        if (startResp.status === 401) {
+          throw new Error("You must be logged in to generate a preview.");
+        }
+        const errorText = await startResp.text();
+        throw new Error(`Server error: ${startResp.status} - ${errorText}`);
       }
 
       const startData = await startResp.json();
       if (!startData.success || !startData.job_id) {
-              throw new Error(startData.error || "Failed to start preview");
-            }
-            const jobId = startData.job_id as string;
+        throw new Error(startData.error || "Failed to start preview");
+      }
+      const jobId = startData.job_id as string;
 
-            // Wait a moment for the job to be persisted in Appwrite
-            const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-            await delay(1000);
+      // Wait a moment for the job to be persisted in Appwrite
+      const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+      await delay(1000);
 
-            let attempts = 0;
-            const maxAttempts = 180; // ~7.5 minutes max (with exponential backoff)
-            let consecutiveErrors = 0;
+      let attempts = 0;
+      const maxAttempts = 180; // ~7.5 minutes max (with exponential backoff)
+      let consecutiveErrors = 0;
       const maxConsecutiveErrors = 3;
 
       while (attempts < maxAttempts) {
         try {
-          const statusResp = await apiClient(`/apply-preview/status?job_id=${jobId}`, {
-            method: "GET",
-          });
-          
+          const statusResp = await apiClient(
+            `/jobs/apply-preview/${jobId}/status`,
+            {
+              method: "GET",
+            },
+          );
+
           if (!statusResp.ok) {
             if (statusResp.status === 404) {
               // Job not found - might have been cleared, wait a bit and retry once
@@ -202,7 +212,9 @@ export function useJobApplication() {
               throw new Error("Preview job not found. Please try again.");
             }
             const errorText = await statusResp.text();
-            throw new Error(`Server error: ${statusResp.status} - ${errorText}`);
+            throw new Error(
+              `Server error: ${statusResp.status} - ${errorText}`,
+            );
           }
 
           const statusData = await statusResp.json();
@@ -236,7 +248,7 @@ export function useJobApplication() {
             setPreviewPhase("Preview ready!");
             break;
           }
-          
+
           if (statusData.status === "error") {
             throw new Error(statusData.error || "Preview generation failed");
           }
@@ -273,7 +285,7 @@ export function useJobApplication() {
       console.error("Preview generation failed:", err);
       setError(err.message || "Failed to generate preview");
       // Don't close dialog on error, allow retry
-      // setShowPreviewDialog(false); 
+      // setShowPreviewDialog(false);
       toast.show({
         title: "Preview Failed",
         description: err.message || "Could not generate application preview",
@@ -293,7 +305,7 @@ export function useJobApplication() {
       });
       return;
     }
-    
+
     try {
       setIsAutoApplying(true);
       setAutomationStatus("Initializing automation agent...");
@@ -301,59 +313,64 @@ export function useJobApplication() {
         title: "Starting Auto-Apply",
         description: "Launching browser automation...",
       });
-      
-      const startResp = await apiClient("/apply-automation/start", {
+
+      const startResp = await apiClient("/jobs/apply-automation/start", {
         method: "POST",
         body: JSON.stringify({
           job_id: previewData.jobId,
         }),
       });
       const startData = await startResp.json();
-      
+
       if (!startData.success) {
         throw new Error(startData.error || "Failed to start automation");
       }
-      
+
       const autoId = startData.automation_id;
-      
+
       // Poll for status
       let attempts = 0;
       const maxAttempts = 60; // 60s timeout for demo
       const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-      
+
       while (attempts < maxAttempts) {
-        const statusResp = await apiClient(`/apply-automation/status?automation_id=${autoId}`, {
-           method: "GET"
-        });
+        const statusResp = await apiClient(
+          `/jobs/apply-automation/${autoId}/status`,
+          {
+            method: "GET",
+          },
+        );
         const status = await statusResp.json();
-        
+
         // Update status for UI
         if (status.step) {
-            setAutomationStatus(status.step);
+          setAutomationStatus(status.step);
         }
 
-        if (status.status === 'submitted') {
-           setAutomationStatus("Application Submitted Successfully!");
-           toast.show({
-             title: "Application Submitted!",
-             description: "The automation agent successfully applied.",
-             variant: "success"
-           });
-           break;
-        } else if (status.status === 'error' || status.status === 'manual_review_needed') {
-           setAutomationStatus(status.error || "Manual review needed");
-           toast.show({
-             title: "Automation Ended",
-             description: status.error || "Manual review needed.",
-             variant: status.status === 'error' ? "error" : "default"
-           });
-           break;
+        if (status.status === "submitted") {
+          setAutomationStatus("Application Submitted Successfully!");
+          toast.show({
+            title: "Application Submitted!",
+            description: "The automation agent successfully applied.",
+            variant: "success",
+          });
+          break;
+        } else if (
+          status.status === "error" ||
+          status.status === "manual_review_needed"
+        ) {
+          setAutomationStatus(status.error || "Manual review needed");
+          toast.show({
+            title: "Automation Ended",
+            description: status.error || "Manual review needed.",
+            variant: status.status === "error" ? "error" : "default",
+          });
+          break;
         }
-        
+
         attempts++;
         await delay(1000);
       }
-      
     } catch (e: any) {
       console.error("Auto-apply error:", e);
       setAutomationStatus("Error: " + (e.message || "Failed"));
@@ -363,9 +380,9 @@ export function useJobApplication() {
         variant: "error",
       });
     } finally {
-        // Keep the success/error message visible for a moment or handle cleanup
-        // We might want to reset isAutoApplying after a delay or let the user dismiss
-        setTimeout(() => setIsAutoApplying(false), 3000);
+      // Keep the success/error message visible for a moment or handle cleanup
+      // We might want to reset isAutoApplying after a delay or let the user dismiss
+      setTimeout(() => setIsAutoApplying(false), 3000);
     }
   };
 
@@ -373,7 +390,7 @@ export function useJobApplication() {
     try {
       applyCancelledRef.current = true;
       if (currentApplyJobId) {
-        await apiClient(`/apply-cancel?job_id=${currentApplyJobId}`, {
+        await apiClient(`/jobs/apply-cancel/${currentApplyJobId}`, {
           method: "POST",
         });
       }
@@ -411,6 +428,6 @@ export function useJobApplication() {
     initiatePreview,
     handleAutoApply,
     isAutoApplying,
-    automationStatus
+    automationStatus,
   };
 }

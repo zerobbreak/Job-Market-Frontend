@@ -37,7 +37,7 @@ function RegenerateButton({ navigate }: { navigate: (path: string) => void }) {
     try {
       setIsRegenerating(true);
 
-      const response = await apiClient("/regenerate-cv", {
+      const response = await apiClient("/profiles/cv/regenerate", {
         method: "POST",
       });
 

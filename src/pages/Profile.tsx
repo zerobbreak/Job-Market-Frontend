@@ -54,7 +54,7 @@ export default function Profile() {
       setFileLoading(true);
       // Use authenticated API endpoint that filters by user ID
       // Backend route is /api/list (no /profile prefix)
-      const response = await apiClient("/list");
+      const response = await apiClient("/profiles");
       const data = await response.json();
 
       if (data.success && data.profiles) {
@@ -80,7 +80,7 @@ export default function Profile() {
   const handleDeleteFile = async (fileId: string) => {
     try {
       // Use authenticated API endpoint for deletion
-      const response = await apiClient(`/profile/${fileId}`, {
+      const response = await apiClient(`/profiles/${fileId}`, {
         method: "DELETE",
       });
       const data = await response.json();
@@ -134,7 +134,7 @@ export default function Profile() {
     setLoading(true);
 
     try {
-      const response = await apiClient("/profile", {
+      const response = await apiClient("/profiles/me", {
         method: "PUT",
         body: JSON.stringify(editForm),
       });
@@ -215,7 +215,7 @@ export default function Profile() {
       const formData = new FormData();
       formData.append("cv", file);
 
-      const response = await apiClient("/analyze-cv", {
+      const response = await apiClient("/profiles/cv/analyze", {
         method: "POST",
         body: formData,
       });
