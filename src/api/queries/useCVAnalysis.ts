@@ -1,15 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
-import { profileService } from '../services';
+import { useQuery } from "@tanstack/react-query";
 
+/**
+ * Disabled: The backend does not have a GET /profiles/cv/analysis endpoint.
+ * CV analysis is done via POST /profiles/cv/analyze (file upload).
+ * This hook is kept to avoid breaking CVAnalysisView.tsx imports,
+ * but it will never fire a request.
+ */
 export const useCVAnalysis = () => {
   return useQuery({
-    queryKey: ['cv-analysis'],
+    queryKey: ["cv-analysis"],
     queryFn: async () => {
-      const data = await profileService.getCVAnalysis();
-      if (data === null) throw new Error('No profile');
-      return data;
+      throw new Error("CV analysis query endpoint not available");
     },
+    enabled: false,
     staleTime: 5 * 60 * 1000,
-    retry: (_, error) => (error as Error)?.message !== 'No profile',
   });
 };

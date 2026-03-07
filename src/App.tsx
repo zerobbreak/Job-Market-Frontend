@@ -13,7 +13,6 @@ import MarketInsights from "./pages/MarketInsights";
 import Applications from "./pages/Applications";
 import Profile from "./pages/Profile";
 import LandingPage from "./pages/LandingPage";
-import CVUpload from "./pages/CVUpload";
 import MatchedJobs from "./pages/MatchedJobs";
 import CVEditor from "./pages/CVEditor";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -85,7 +84,6 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/cv-upload" element={<CVUpload />} />
           <Route path="/job-matches" element={<MatchedJobs />} />
           <Route path="/market-insights" element={<MarketInsights />} />
           <Route path="/applications" element={<Applications />} />

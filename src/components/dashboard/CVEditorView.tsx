@@ -264,7 +264,7 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
                           )}
                       </>
                     ) : (
-                      "Add a summary in the CV editor or upload a CV."
+                      "No summary provided. Please add one in the CV Editor."
                     )}
                   </p>
                 </div>

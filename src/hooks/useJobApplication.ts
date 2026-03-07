@@ -296,104 +296,19 @@ export function useJobApplication() {
     }
   };
 
+  // NOTE: Auto-apply automation is disabled — backend routes not yet implemented.
   const handleAutoApply = async () => {
-    if (!previewData?.jobId) {
-      toast.show({
-        title: "Error",
-        description: "Preview data not ready. Please generate preview first.",
-        variant: "error",
-      });
-      return;
-    }
-
-    try {
-      setIsAutoApplying(true);
-      setAutomationStatus("Initializing automation agent...");
-      toast.show({
-        title: "Starting Auto-Apply",
-        description: "Launching browser automation...",
-      });
-
-      const startResp = await apiClient("/jobs/apply-automation/start", {
-        method: "POST",
-        body: JSON.stringify({
-          job_id: previewData.jobId,
-        }),
-      });
-      const startData = await startResp.json();
-
-      if (!startData.success) {
-        throw new Error(startData.error || "Failed to start automation");
-      }
-
-      const autoId = startData.automation_id;
-
-      // Poll for status
-      let attempts = 0;
-      const maxAttempts = 60; // 60s timeout for demo
-      const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-      while (attempts < maxAttempts) {
-        const statusResp = await apiClient(
-          `/jobs/apply-automation/${autoId}/status`,
-          {
-            method: "GET",
-          },
-        );
-        const status = await statusResp.json();
-
-        // Update status for UI
-        if (status.step) {
-          setAutomationStatus(status.step);
-        }
-
-        if (status.status === "submitted") {
-          setAutomationStatus("Application Submitted Successfully!");
-          toast.show({
-            title: "Application Submitted!",
-            description: "The automation agent successfully applied.",
-            variant: "success",
-          });
-          break;
-        } else if (
-          status.status === "error" ||
-          status.status === "manual_review_needed"
-        ) {
-          setAutomationStatus(status.error || "Manual review needed");
-          toast.show({
-            title: "Automation Ended",
-            description: status.error || "Manual review needed.",
-            variant: status.status === "error" ? "error" : "default",
-          });
-          break;
-        }
-
-        attempts++;
-        await delay(1000);
-      }
-    } catch (e: any) {
-      console.error("Auto-apply error:", e);
-      setAutomationStatus("Error: " + (e.message || "Failed"));
-      toast.show({
-        title: "Auto-Apply Failed",
-        description: e.message || "Could not start automation agent",
-        variant: "error",
-      });
-    } finally {
-      // Keep the success/error message visible for a moment or handle cleanup
-      // We might want to reset isAutoApplying after a delay or let the user dismiss
-      setTimeout(() => setIsAutoApplying(false), 3000);
-    }
+    toast.show({
+      title: "Coming Soon",
+      description: "Auto-apply automation is not available yet.",
+      variant: "default",
+    });
   };
 
   const handleCancelApply = async () => {
     try {
       applyCancelledRef.current = true;
-      if (currentApplyJobId) {
-        await apiClient(`/jobs/apply-cancel/${currentApplyJobId}`, {
-          method: "POST",
-        });
-      }
+      // NOTE: /jobs/apply-cancel endpoint not yet implemented in backend
       toast.show({
         title: "Cancelled",
         description: "Application process cancelled",

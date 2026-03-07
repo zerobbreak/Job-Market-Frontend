@@ -119,7 +119,7 @@ export default function Profile() {
       career_goals: "",
       notification_enabled: false,
       notification_threshold: 70,
-    }
+    },
   );
 
   // Sync local state with profile when it loads asynchronously
@@ -150,7 +150,7 @@ export default function Profile() {
           // If response is not JSON (e.g., HTML error page), use status text
           errorMessage = response.statusText || errorMessage;
         }
-        
+
         toast.show({
           title: "Save failed",
           description: errorMessage,
@@ -187,7 +187,7 @@ export default function Profile() {
         track(
           "profile_saved",
           { notification_enabled: updatedProfile.notification_enabled },
-          "app"
+          "app",
         );
       } else {
         toast.show({
@@ -198,7 +198,8 @@ export default function Profile() {
       }
     } catch (err) {
       console.error("Error saving profile:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to connect to server";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to connect to server";
       toast.show({
         title: "Error",
         description: errorMessage,
@@ -213,18 +214,34 @@ export default function Profile() {
     try {
       setLoading(true);
       const formData = new FormData();
-      formData.append("cv", file);
+      formData.append("cv_file", file);
 
       const response = await apiClient("/profiles/cv/analyze", {
         method: "POST",
         body: formData,
       });
       const data = await response.json();
+      const extractedProfile = data.profile || data.cv_details?.profile;
 
-      if (data.success && data.profile) {
-        setProfile(data.profile);
-        setEditForm(data.profile); // Update local form too
+      if (data.success && extractedProfile) {
+        setProfile(extractedProfile);
+        setEditForm(extractedProfile); // Update local form too
         setIsEditing(false);
+
+        // Prime matches immediately after successful CV upload.
+        try {
+          await apiClient("/jobs/matches", {
+            method: "POST",
+            body: JSON.stringify({
+              location: extractedProfile.location || "South Africa",
+              max_results: 20,
+              min_score: 0.0,
+              force_refresh: true,
+            }),
+          });
+        } catch (matchErr) {
+          console.warn("Match refresh after upload failed:", matchErr);
+        }
         toast.show({
           title: "CV analyzed",
           description: "Your profile has been generated.",
@@ -273,7 +290,7 @@ export default function Profile() {
           <CVUploader onUpload={handleCVUpload} isUploading={loading} />
 
           <Button
-            onClick={() => navigate("/app/dashboard")}
+            onClick={() => navigate("/dashboard")}
             variant="ghost"
             className="text-muted-foreground hover:text-primary"
           >
@@ -516,17 +533,24 @@ export default function Profile() {
                         // Skip if skill is too long (likely a concatenation error)
                         if (skill.length > 40) return null;
                         // Skip if it contains known header words and is somewhat long
-                        if (skill.length > 20 && /programming|languages|frameworks|tools|additional|skills/i.test(skill)) return null;
-                        
+                        if (
+                          skill.length > 20 &&
+                          /programming|languages|frameworks|tools|additional|skills/i.test(
+                            skill,
+                          )
+                        )
+                          return null;
+
                         return (
-                        <Badge
-                          key={idx}
-                          variant="secondary"
-                          className="bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1 transition-colors"
-                        >
-                          {skill}
-                        </Badge>
-                      )})
+                          <Badge
+                            key={idx}
+                            variant="secondary"
+                            className="bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1 transition-colors"
+                          >
+                            {skill}
+                          </Badge>
+                        );
+                      })
                     ) : (
                       <span className="text-muted-foreground text-sm italic">
                         No skills listed
@@ -691,8 +715,8 @@ export default function Profile() {
                       <Slider
                         value={[
                           isEditing
-                            ? editForm.notification_threshold ?? 70
-                            : profile.notification_threshold ?? 70,
+                            ? (editForm.notification_threshold ?? 70)
+                            : (profile.notification_threshold ?? 70),
                         ]}
                         onValueChange={(vals) =>
                           isEditing &&
@@ -717,3 +741,5 @@ export default function Profile() {
     </div>
   );
 }
+
+

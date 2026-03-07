@@ -80,9 +80,8 @@ export default function RootLayout() {
         },
         {
           name: "Smart CV Editor",
-          href: "/dashboard?tab=cv-editor",
+          href: "/cv-editor",
           icon: FileEdit,
-          dashboardTab: "cv-editor" as const,
         },
         { name: "Agent Activity", href: "/applications", icon: BarChart3 },
       ],
@@ -113,10 +112,8 @@ export default function RootLayout() {
               const isDashboard = "dashboardTab" in item;
               const active =
                 isDashboard && location.pathname === "/dashboard"
-                  ? (item.dashboardTab === "job-feed" &&
-                      (!tab || tab === "job-feed")) ||
-                    (item.dashboardTab === "cv-editor" &&
-                      (tab === "cv-editor" || tab === "cv-analysis"))
+                  ? item.dashboardTab === "job-feed" &&
+                    (!tab || tab === "job-feed")
                   : null;
               const isDashboardActive = active === true;
 

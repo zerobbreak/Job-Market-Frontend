@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Activity, AlertTriangle, Cpu, HardDrive, CheckCircle2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Activity,
+  AlertTriangle,
+  Cpu,
+  HardDrive,
+  CheckCircle2,
+} from "lucide-react";
 import { apiClient } from "@/utils/api";
 import { Progress } from "@/components/ui/progress";
 
@@ -31,7 +43,7 @@ export default function AdminDashboard() {
   const fetchHealth = async () => {
     try {
       // Note: In a real app, this would be protected by admin middleware
-      const res = await apiClient("/admin/health");
+      const res = await apiClient("/admin/system-stats");
       const json = await res.json();
       if (res.ok) {
         setData(json);
@@ -81,7 +93,9 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">System Health</h1>
-          <p className="text-muted-foreground">Real-time monitoring of backend services and agents.</p>
+          <p className="text-muted-foreground">
+            Real-time monitoring of backend services and agents.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <span className="relative flex h-3 w-3">
@@ -95,12 +109,18 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Threads</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Threads
+            </CardTitle>
             <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.task_manager.active_threads}</div>
-            <p className="text-xs text-muted-foreground">Background workers running</p>
+            <div className="text-2xl font-bold">
+              {data?.task_manager.active_threads}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Background workers running
+            </p>
           </CardContent>
         </Card>
 
@@ -110,7 +130,9 @@ export default function AdminDashboard() {
             <Cpu className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.system.cpu_percent}%</div>
+            <div className="text-2xl font-bold">
+              {data?.system.cpu_percent}%
+            </div>
             <Progress value={data?.system.cpu_percent} className="h-2 mt-2" />
           </CardContent>
         </Card>
@@ -121,20 +143,29 @@ export default function AdminDashboard() {
             <HardDrive className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.system.memory_usage_mb} MB</div>
-            <p className="text-xs text-muted-foreground">Uptime: {formatUptime(data?.system.uptime_seconds || 0)}</p>
+            <div className="text-2xl font-bold">
+              {data?.system.memory_usage_mb} MB
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Uptime: {formatUptime(data?.system.uptime_seconds || 0)}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Applications
+            </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.business_metrics.total_applications}</div>
+            <div className="text-2xl font-bold">
+              {data?.business_metrics.total_applications}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Failures (last 10 jobs): {data?.business_metrics.recent_job_failures}
+              Failures (last 10 jobs):{" "}
+              {data?.business_metrics.recent_job_failures}
             </p>
           </CardContent>
         </Card>
@@ -144,12 +175,16 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Task Manager Status</CardTitle>
-            <CardDescription>Worker thread pool health and throughput</CardDescription>
+            <CardDescription>
+              Worker thread pool health and throughput
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
               <span className="text-sm font-medium">Status</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${data?.task_manager.status === 'healthy' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${data?.task_manager.status === "healthy" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+              >
                 {data?.task_manager.status.toUpperCase()}
               </span>
             </div>
@@ -163,26 +198,38 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Application Breakdown</CardTitle>
-            <CardDescription>Distribution of application statuses</CardDescription>
+            <CardDescription>
+              Distribution of application statuses
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {Object.entries(data?.business_metrics.application_breakdown || {}).map(([key, value]) => (
-                key !== 'total' && (
-                  <div key={key} className="flex justify-between items-center">
-                    <span className="text-sm capitalize">{key}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-blue-500" 
-                          style={{ width: `${(value / (data?.business_metrics.total_applications || 1)) * 100}%` }}
-                        />
+              {Object.entries(
+                data?.business_metrics.application_breakdown || {},
+              ).map(
+                ([key, value]) =>
+                  key !== "total" && (
+                    <div
+                      key={key}
+                      className="flex justify-between items-center"
+                    >
+                      <span className="text-sm capitalize">{key}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500"
+                            style={{
+                              width: `${(value / (data?.business_metrics.total_applications || 1)) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium w-8 text-right">
+                          {value}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium w-8 text-right">{value}</span>
                     </div>
-                  </div>
-                )
-              ))}
+                  ),
+              )}
             </div>
           </CardContent>
         </Card>

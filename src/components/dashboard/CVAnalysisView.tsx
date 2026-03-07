@@ -94,7 +94,7 @@ interface CVAnalysisViewProps {
 
 export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
   const navigate = useNavigate();
-  const { data, isLoading, isError, error, refetch } = useCVAnalysis();
+  const { data, isLoading, isError, error, refetch } = useCVAnalysis() as any;
 
   if (isLoading) {
     return (
@@ -140,7 +140,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
         </p>
         <Button
           className="bg-primary hover:bg-primary/90"
-          onClick={() => navigate("/cv-upload")}
+          onClick={() => navigate("/profile")}
         >
           <Upload className="h-4 w-4 mr-2" />
           Upload CV
@@ -182,7 +182,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
         <Button
           variant="outline"
           className="border-white/20"
-          onClick={() => navigate("/cv-upload")}
+          onClick={() => navigate("/profile")}
         >
           <Upload className="h-4 w-4 mr-2" />
           Upload CV
@@ -229,7 +229,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
               variant="outline"
               size="sm"
               className="border-white/20 text-zinc-300 hover:bg-white/10 hover:text-white"
-              onClick={() => navigate("/cv-upload")}
+              onClick={() => navigate("/profile")}
             >
               <Upload className="h-4 w-4 mr-2" />
               Update CV
@@ -260,7 +260,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
                     Core Skills
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {skills.slice(0, 12).map((s, i) => (
+                    {skills.slice(0, 12).map((s: any, i: number) => (
                       <span
                         key={i}
                         className={cn(

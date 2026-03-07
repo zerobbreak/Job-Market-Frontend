@@ -46,6 +46,12 @@ const getValidToken = async (forceRefresh = false): Promise<string | null> => {
   return tokenRefreshPromise;
 };
 
+export const clearApiCache = () => {
+  cachedToken = null;
+  tokenExpiry = null;
+  tokenRefreshPromise = null;
+};
+
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const apiClient = async (endpoint: string, options: ApiOptions = {}) => {

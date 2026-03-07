@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Upload,
   Briefcase,
   FileText,
   ChevronDown,
@@ -24,7 +23,12 @@ import {
 } from "@/components/matched-jobs/JobFeedCard";
 import { CVAnalysisView } from "@/components/dashboard/CVAnalysisView";
 import { CVEditorView } from "@/components/dashboard/CVEditorView";
+import { CVUploader } from "@/components/profile/CVUploader";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/utils/api";
+import { useToast } from "@/components/ui/toast";
+import { clearMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
+import { track } from "@/utils/analytics";
 
 export type DashboardTab = "job-feed" | "cv-analysis" | "cv-editor";
 
@@ -46,9 +50,57 @@ function profileStrengthScore(profile: OutletContextType["profile"]): number {
 }
 
 export default function Dashboard() {
-  const { profile } = useOutletContext<OutletContextType>();
+  const { profile, setProfile } = useOutletContext<OutletContextType>();
   const navigate = useNavigate();
+  const toast = useToast();
+  const [uploading, setUploading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const handleCVUpload = async (file: File) => {
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append("cv_file", file);
+      const response = await apiClient("/profiles/cv/analyze", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      const extractedProfile = data.profile || data.cv_details?.profile;
+
+      if (data.success && extractedProfile) {
+        setProfile(extractedProfile);
+        clearMatchedJobsCache();
+        await findMatches(true);
+        track(
+          "cv_uploaded",
+          { filename: file.name, source: "dashboard" },
+          "cv_upload",
+        );
+        toast.show({
+          title: "CV analyzed",
+          description:
+            "Your profile has been generated. Welcome to Cockpit AI!",
+          variant: "success",
+        });
+      } else {
+        toast.show({
+          title: "Upload failed",
+          description: data.error || "Failed to analyze CV. Please try again.",
+          variant: "error",
+        });
+      }
+    } catch (err: any) {
+      toast.show({
+        title: "Upload error",
+        description: err.message || "Error uploading CV. Please try again.",
+        variant: "error",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const tabParam = searchParams.get("tab") as DashboardTab | null;
   const [mainTab, setMainTab] = useState<DashboardTab>(
     tabParam && ["job-feed", "cv-analysis", "cv-editor"].includes(tabParam)
@@ -110,7 +162,7 @@ export default function Dashboard() {
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
           <Briefcase className="h-96 w-96" />
         </div>
-        <div className="w-full max-w-2xl space-y-10 relative z-10 glass-panel p-10 md:p-14 rounded-3xl">
+        <div className="w-full max-w-2xl space-y-8 relative z-10 glass-panel p-10 md:p-14 rounded-3xl">
           <div className="space-y-4">
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight bg-linear-to-br from-white to-zinc-400 bg-clip-text text-transparent">
               Your AI job agent awaits a mission
@@ -120,27 +172,7 @@ export default function Dashboard() {
               analyze the market, and build your personalized job feed.
             </p>
           </div>
-
-          <div
-            onClick={() => navigate("/cv-upload")}
-            className="group relative border-2 border-dashed border-border hover:border-primary/50 bg-card/30 rounded-2xl p-12 transition-all hover:bg-white/5 cursor-pointer mt-8"
-          >
-            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity"></div>
-            <div className="relative z-10">
-              <div className="h-20 w-20 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-xl">
-                <Upload className="h-10 w-10 text-primary" />
-              </div>
-              <p className="text-xl font-semibold mb-2">
-                Drag & drop your CV here
-              </p>
-              <p className="text-sm text-muted-foreground mb-8">
-                Supports PDF, DOCX (Max 5MB)
-              </p>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-8 h-12 text-base font-medium shadow-lg shadow-primary/20">
-                Ready for launch
-              </Button>
-            </div>
-          </div>
+          <CVUploader onUpload={handleCVUpload} isUploading={uploading} />
         </div>
       </div>
     );
@@ -580,3 +612,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

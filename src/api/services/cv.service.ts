@@ -1,12 +1,12 @@
-import { apiClient } from '@/utils/api';
-import type { CVProfile, UploadCVResponse } from '../types';
+import { apiClient } from "@/utils/api";
+import type { CVProfile, UploadCVResponse } from "../types";
 
 export const cvService = {
   /**
    * List all CVs for the current user
    */
   list: async (): Promise<CVProfile[]> => {
-    const response = await apiClient('/profiles', { method: 'GET' });
+    const response = await apiClient("/profiles", { method: "GET" });
     const data = await response.json();
     return data.profiles || [];
   },
@@ -16,13 +16,13 @@ export const cvService = {
    */
   upload: async (file: File, overwrite = false): Promise<UploadCVResponse> => {
     const formData = new FormData();
-    formData.append('cv', file);
+    formData.append("cv_file", file);
     if (overwrite) {
-      formData.append('overwrite', 'true');
+      formData.append("overwrite", "true");
     }
 
-    const response = await apiClient('/profiles/cv/analyze', {
-      method: 'POST',
+    const response = await apiClient("/profiles/cv/analyze", {
+      method: "POST",
       body: formData,
     });
     return response.json();
@@ -33,7 +33,7 @@ export const cvService = {
    */
   delete: async (fileId: string) => {
     const response = await apiClient(`/profiles/${fileId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
     return response.json();
   },
@@ -43,7 +43,7 @@ export const cvService = {
    */
   setActive: async (fileId: string) => {
     const response = await apiClient(`/profiles/${fileId}/activate`, {
-      method: 'PUT',
+      method: "PUT",
     });
     return response.json();
   },
