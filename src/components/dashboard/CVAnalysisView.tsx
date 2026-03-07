@@ -1,16 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import {
-  FileText,
-  Upload,
-  AlertTriangle,
-  Sparkles,
-  Loader2,
-} from "lucide-react";
+import { FileText, Upload, AlertTriangle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useCVAnalysis } from "@/api/queries";
 import type { OutletContextType } from "@/components/layout/RootLayout";
 import type { CVAnalysisSkillGap } from "@/api/types";
 import { cn } from "@/lib/utils";
@@ -94,42 +86,8 @@ interface CVAnalysisViewProps {
 
 export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
   const navigate = useNavigate();
-  const { data, isLoading, isError, error, refetch } = useCVAnalysis() as any;
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="grid lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <Skeleton className="h-6 w-32 bg-white/10" />
-            <Card className="glass-card border-transparent">
-              <CardContent className="p-6 space-y-5">
-                <Skeleton className="h-7 w-48 bg-white/10" />
-                <Skeleton className="h-4 w-36 bg-white/10" />
-                <Skeleton className="h-16 w-full bg-white/10" />
-                <Skeleton className="h-20 w-full bg-white/10" />
-              </CardContent>
-            </Card>
-          </div>
-          <div className="lg:col-span-3 space-y-4">
-            <Skeleton className="h-6 w-24 bg-white/10" />
-            <Card className="glass-card border-transparent">
-              <CardContent className="p-6 flex items-center gap-6">
-                <Skeleton className="h-28 w-28 rounded-full bg-white/10" />
-                <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-full bg-white/10" />
-                  <Skeleton className="h-4 w-3/4 bg-white/10" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const noProfile = (error as Error)?.message === "No profile";
-  if (isError && noProfile) {
+  if (!_profile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] p-6 text-center animate-fade-in">
         <FileText className="h-14 w-14 text-zinc-500 mb-4" />
@@ -148,47 +106,26 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
       </div>
     );
   }
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] p-6 text-center animate-fade-in">
-        <AlertTriangle className="h-14 w-14 text-amber-500 mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">
-          Could not load analysis
-        </h3>
-        <p className="text-zinc-400 mb-6 max-w-md">
-          {(error as Error)?.message || "Something went wrong. Try again."}
-        </p>
-        <Button
-          variant="outline"
-          className="border-white/20"
-          onClick={() => refetch()}
-        >
-          Retry
-        </Button>
-      </div>
-    );
-  }
 
-  const doc = data?.uploaded_document;
-  const ai = data?.ai_analysis;
-  const parsing = data?.parsing_status;
+  const doc = {
+    candidate_name: _profile.name,
+    professional_summary: (_profile as any).summary || _profile.career_goals,
+    core_skills: _profile.skills || [],
+    role_type: (_profile as any).title || _profile.experience_level,
+    experience: _profile.experience_level,
+    skill_density_alignment: 85,
+  };
 
-  if (!doc) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] p-6 text-center animate-fade-in">
-        <AlertTriangle className="h-14 w-14 text-amber-500 mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">No CV data</h3>
-        <p className="text-zinc-400 mb-6">Upload a CV to get started.</p>
-        <Button
-          variant="outline"
-          className="border-white/20"
-          onClick={() => navigate("/profile")}
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Upload CV
-        </Button>
-      </div>
-    );
+  let ai = null;
+  try {
+    if ((_profile as any).ai_analysis) {
+      ai =
+        typeof (_profile as any).ai_analysis === "string"
+          ? JSON.parse((_profile as any).ai_analysis)
+          : (_profile as any).ai_analysis;
+    }
+  } catch (e) {
+    console.error("Failed to parse ai_analysis from profile", e);
   }
 
   const score = ai?.match_readiness_score ?? doc.skill_density_alignment;
@@ -198,25 +135,6 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {parsing && (
-        <div className="flex justify-end">
-          <Card className="glass-card border-transparent px-4 py-2">
-            <div className="flex items-center gap-2">
-              {(parsing.progress ?? 100) < 100 ? (
-                <Loader2 className="h-4 w-4 text-accent animate-spin" />
-              ) : null}
-              <span className="text-xs font-medium text-zinc-400">
-                CV PARSING ACTIVE
-              </span>
-              <span className="text-xs text-zinc-500">•</span>
-              <span className="text-xs text-zinc-300">
-                {parsing.message || "Complete"} {parsing.progress ?? 100}%
-              </span>
-            </div>
-          </Card>
-        </div>
-      )}
-
       <div className="grid lg:grid-cols-5 gap-6">
         {/* Uploaded Document */}
         <div className="lg:col-span-2 space-y-4">
