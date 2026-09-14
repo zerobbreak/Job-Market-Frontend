@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Mail, Lock, User, Loader2, AlertCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "@tanstack/react-router";
 import AuthLayout from "./layout/AuthLayout";
 
 const Register: React.FC = () => {
@@ -20,7 +20,7 @@ const Register: React.FC = () => {
 
     try {
       await register(email, password, name);
-      navigate("/dashboard");
+      navigate({ to: "/dashboard" });
     } catch (err: any) {
       setError(err.message || "Failed to register");
     } finally {

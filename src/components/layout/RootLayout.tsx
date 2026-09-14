@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import { Outlet, Link, useSearch } from "@tanstack/react-router";
 import {
   LogOut,
   Menu,
@@ -13,60 +14,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { apiClient } from "@/utils/api";
 import { cn } from "@/lib/utils";
 
-export interface Profile {
-  name?: string;
-  email?: string;
-  phone?: string;
-  location?: string;
-  skills: string[];
-  experience_level: string;
-  education: string;
-  strengths: string[];
-  career_goals: string;
-  notification_enabled?: boolean;
-  notification_threshold?: number;
-}
-
-export type OutletContextType = {
-  profile: Profile | null;
-  setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
-};
-
 export default function RootLayout() {
-  const { user, logout } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const { logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const location = useLocation();
-  const tab = new URLSearchParams(location.search).get("tab");
-
-  // Load profile data when user is authenticated
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) {
-        setProfile(null);
-        return;
-      }
-
-      try {
-        // Backend route is registered as /api/structured (no /profile prefix)
-        const response = await apiClient("/profiles/me/structured");
-
-        // Response status check is handled inside apiClient (throws on 401)
-
-        const data = await response.json();
-        if (data.success && data.profile) {
-          setProfile(data.profile);
-        }
-      } catch (error) {
-        console.error("Error loading profile:", error);
-      }
-    };
-
-    loadProfile();
-  }, [user]);
+  const search = useSearch({ strict: false }) as { tab?: string };
+  const tab = search.tab;
 
   const navGroups = [
     {
@@ -110,14 +64,8 @@ export default function RootLayout() {
             {group.items.map((item) => {
               const Icon = item.icon;
               const isDashboard = "dashboardTab" in item;
-              const active =
-                isDashboard && location.pathname === "/dashboard"
-                  ? item.dashboardTab === "job-feed" &&
-                    (!tab || tab === "job-feed")
-                  : null;
-              const isDashboardActive = active === true;
 
-              const linkContent = (
+              const linkContent: ReactNode = (
                 <>
                   <Icon className="h-5 w-5 shrink-0" />
                   {item.name}
@@ -130,6 +78,8 @@ export default function RootLayout() {
               );
 
               if (isDashboard) {
+                const isDashboardActive =
+                  item.dashboardTab === "job-feed" && (!tab || tab === "job-feed");
                 return (
                   <Link
                     key={item.name}
@@ -147,21 +97,17 @@ export default function RootLayout() {
                 );
               }
               return (
-                <NavLink
+                <Link
                   key={item.name}
                   to={item.href}
                   onClick={onClick}
-                  className={({ isActive }) =>
-                    cn(
-                      className,
-                      isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground",
-                    )
-                  }
+                  className={cn(className, "text-sidebar-foreground")}
+                  activeProps={{
+                    className: "bg-sidebar-accent text-sidebar-accent-foreground",
+                  }}
                 >
                   {linkContent}
-                </NavLink>
+                </Link>
               );
             })}
           </div>
@@ -303,7 +249,7 @@ export default function RootLayout() {
 
         <main className="flex-1 overflow-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto animate-fade-in">
-            <Outlet context={{ profile, setProfile }} />
+            <Outlet />
           </div>
         </main>
       </div>

@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { track } from "@/utils/analytics";
 import { useToast } from "@/components/ui/toast";
-import { apiClient } from "@/utils/api";
+import { filesService } from "@/api/services";
 
 interface ApplicationPreviewDialogProps {
   open: boolean;
@@ -100,22 +100,12 @@ export function ApplicationPreviewDialog({
       // This is the battle-tested approach used by major cloud providers
       const fileType = type === "cv" ? "preview_cv" : "preview_cover_letter";
 
-      const signedUrlResponse = await apiClient("/files/signed-url", {
-        method: "POST",
-        body: JSON.stringify({
-          file_id: previewJobId,
-          bucket_id: "preview", // Placeholder for preview files
-          file_type: fileType,
-          expires_in: 3600, // 1 hour
-        }),
-      });
-
-      if (!signedUrlResponse.ok) {
-        const errorData = await signedUrlResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to generate download URL");
-      }
-
-      const { url } = await signedUrlResponse.json();
+      const { url } = await filesService.getSignedUrl(
+        previewJobId,
+        "preview", // Placeholder for preview files
+        fileType,
+        3600, // 1 hour
+      );
 
       // Trigger Native Browser Download using Signed URL
       // Signed URLs work directly without authentication headers, perfect for browser downloads

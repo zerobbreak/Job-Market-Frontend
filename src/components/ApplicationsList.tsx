@@ -16,29 +16,17 @@ import {
 import { track } from "@/utils/analytics";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { apiClient } from "@/utils/api";
+import { applicationsService, filesService } from "@/api/services";
+import type { Application } from "@/api/services/applications.service";
 import { cn } from "@/lib/utils";
-
-type Application = {
-  id: string;
-  jobTitle: string;
-  company: string;
-  jobUrl?: string;
-  location?: string;
-  status: "pending" | "applied" | "interview" | "rejected";
-  appliedDate: string;
-  files?: { cv: string; cover_letter: string; interview_prep?: string };
-};
 
 export default function ApplicationsList({
   applications,
-  API_ORIGIN,
   serverPage,
   serverTotalPages,
   onPageChange,
 }: {
   applications: Application[];
-  API_ORIGIN: string;
   serverPage?: number;
   serverTotalPages?: number;
   onPageChange?: (page: number) => void;
@@ -86,7 +74,7 @@ export default function ApplicationsList({
 
       if (!bucketId || !fileId) {
         const endpoint = fileUrl.replace(/^\/api/, "");
-        const response = await apiClient(endpoint);
+        const response = await filesService.downloadFile(endpoint);
         if (!response.ok) throw new Error("Download failed");
 
         const blob = await response.blob();
@@ -99,22 +87,10 @@ export default function ApplicationsList({
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        const signedUrlResponse = await apiClient("/files/signed-url", {
-          method: "POST",
-          body: JSON.stringify({
-            file_id: fileId,
-            bucket_id: bucketId,
-            file_type: "storage",
-            expires_in: 3600,
-          }),
-        });
-
-        if (!signedUrlResponse.ok) {
-          const errorData = await signedUrlResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || "Failed to generate download URL");
-        }
-
-        const { url: signedUrl } = await signedUrlResponse.json();
+        const { url: signedUrl } = await filesService.getSignedUrl(
+          fileId,
+          bucketId,
+        );
         window.location.href = signedUrl;
       }
 
@@ -178,13 +154,8 @@ export default function ApplicationsList({
     newStatus: Application["status"],
   ) => {
     try {
-      const res = await fetch(`${API_ORIGIN}/applications/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.success === false)
+      const data = await applicationsService.updateStatus(id, newStatus);
+      if (data.success === false)
         throw new Error(data.error || "Status update failed");
 
       setLocalApps((prev) =>

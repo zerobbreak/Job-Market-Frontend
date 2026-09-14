@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Mail, X, Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { account } from "../utils/appwrite";
+import { forgotPasswordFn } from "@/lib/auth";
 
 interface ForgotPasswordModalProps {
   isOpen: boolean;
@@ -55,11 +55,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Appwrite password recovery - sends email with reset link
-      await account.createRecovery(
-        email,
-        `${window.location.origin}/reset-password`
-      );
+      await forgotPasswordFn({ data: { email } });
 
       setSuccess(true);
       setEmail("");

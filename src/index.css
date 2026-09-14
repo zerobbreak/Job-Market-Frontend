@@ -56,6 +56,29 @@
   --animate-out: animate-out 0.5s ease-in;
 }
 
+/* Landing hero: slow drift + rock for the floating job cards */
+@keyframes job-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--float-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-14px) rotate(calc(var(--float-rotate, 0deg) + 2.5deg));
+  }
+}
+
+.job-float {
+  transform: rotate(var(--float-rotate, 0deg));
+  animation: job-float var(--float-duration, 12s) ease-in-out var(--float-delay, 0s) infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .job-float {
+    animation: none;
+  }
+}
+
 @layer utilities {
   @keyframes fadeIn {
     from {

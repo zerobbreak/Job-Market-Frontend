@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Lock,
   Loader2,
@@ -8,11 +8,14 @@ import {
   EyeOff,
   CheckCircle,
 } from "lucide-react";
-import { account } from "../utils/appwrite";
+import { resetPasswordFn } from "@/lib/auth";
 import AuthLayout from "./layout/AuthLayout";
 
-const ResetPassword: React.FC = () => {
-  const [searchParams] = useSearchParams();
+interface ResetPasswordProps {
+  token: string | undefined;
+}
+
+const ResetPassword: React.FC<ResetPasswordProps> = ({ token }) => {
   const navigate = useNavigate();
 
   const [password, setPassword] = useState("");
@@ -22,14 +25,11 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const userId = searchParams.get("userId");
-  const secret = searchParams.get("secret");
-
   useEffect(() => {
-    if (!userId || !secret) {
+    if (!token) {
       setError("Invalid password reset link. Please try requesting a new one.");
     }
-  }, [userId, secret]);
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +45,7 @@ const ResetPassword: React.FC = () => {
       return;
     }
 
-    if (!userId || !secret) {
+    if (!token) {
       setError("Missing reset credentials");
       return;
     }
@@ -53,11 +53,11 @@ const ResetPassword: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await account.updateRecovery(userId, secret, password);
+      await resetPasswordFn({ data: { token, password } });
       setSuccess(true);
       // Wait a bit before redirecting so user sees success message
       setTimeout(() => {
-        navigate("/login");
+        navigate({ to: "/login" });
       }, 3000);
     } catch (err: any) {
       setError(
@@ -83,7 +83,7 @@ const ResetPassword: React.FC = () => {
             You will be redirected to the login page momentarily...
           </p>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate({ to: "/login" })}
             className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             Go to Login
@@ -165,7 +165,7 @@ const ResetPassword: React.FC = () => {
 
           <button
             type="submit"
-            disabled={isSubmitting || !userId || !secret}
+            disabled={isSubmitting || !token}
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-white bg-blue-600 hover:bg-blue-500 font-semibold shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
           >
             {isSubmitting ? (

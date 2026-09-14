@@ -1,22 +1,30 @@
 import React, { useEffect } from 'react';
-import CVEditorLayout from '../components/cv-builder/CVEditorLayout';
-import EditorSidebar from '../components/cv-builder/EditorSidebar';
-import CVPreview from '../components/cv-builder/CVPreview';
-import { useProfile } from '@/api/queries/useProfile';
+import { createFileRoute } from '@tanstack/react-router';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import CVEditorLayout from '@/components/cv-builder/CVEditorLayout';
+import EditorSidebar from '@/components/cv-builder/EditorSidebar';
+import CVPreview from '@/components/cv-builder/CVPreview';
+import { profileQueryOptions } from '@/api/queries/options';
 import { useCVStore } from '@/stores/cvStore';
 import { useToast } from '@/components/ui/toast';
-import { Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
-const CVEditor: React.FC = () => {
-  const { data: profile, isLoading } = useProfile();
-  const { 
-    data: cvData, 
-    updatePersonalInfo, 
-    setSkills, 
-    setEducation, 
-    setExperience, 
-    setProjects 
+export const Route = createFileRoute('/_authenticated/cv-editor')({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(profileQueryOptions());
+  },
+  component: CVEditor,
+});
+
+function CVEditor() {
+  const { data: profile } = useSuspenseQuery(profileQueryOptions());
+  const {
+    data: cvData,
+    updatePersonalInfo,
+    setSkills,
+    setEducation,
+    setExperience,
+    setProjects
   } = useCVStore();
   const { show: toast } = useToast();
   const [hasPopulated, setHasPopulated] = React.useState(false);
@@ -48,7 +56,7 @@ const CVEditor: React.FC = () => {
     if (profile && !hasPopulated && !cvData.personalInfo.fullName) {
       console.log('Populating CV from profile:', profile);
       const p = profile as any; // Cast to any to access new fields
-      
+
       updatePersonalInfo({
         fullName: p.name || '',
         email: p.email || '',
@@ -77,7 +85,7 @@ const CVEditor: React.FC = () => {
               id: uuidv4(),
               institution: edu.institution || '',
               degree: edu.degree || '',
-              field: '', 
+              field: '',
               startDate: parseDateToMonth(edu.year?.split(/[-–]/)[0] || edu.year) || '',
               endDate: parseDateToMonth(edu.year?.split(/[-–]/)[1]) || '',
               current: (edu.year || '').toLowerCase().includes('present'),
@@ -112,7 +120,7 @@ const CVEditor: React.FC = () => {
           }));
           setProjects(newProjects);
       }
-      
+
       setHasPopulated(true);
       toast({
         title: "CV Data Populated",
@@ -121,20 +129,10 @@ const CVEditor: React.FC = () => {
     }
   }, [profile, hasPopulated, cvData.personalInfo.fullName, updatePersonalInfo, setSkills, setEducation, setExperience, setProjects, toast]);
 
-  if (isLoading && !hasPopulated && !cvData.personalInfo.fullName) {
-      return (
-          <div className="flex h-screen items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-      );
-  }
-
   return (
     <CVEditorLayout
       sidebar={<EditorSidebar />}
       preview={<CVPreview />}
     />
   );
-};
-
-export default CVEditor;
+}

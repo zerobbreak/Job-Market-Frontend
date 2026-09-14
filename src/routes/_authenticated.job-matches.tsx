@@ -1,5 +1,6 @@
-import { useOutletContext } from "react-router-dom";
-import type { OutletContextType } from "@/components/layout/RootLayout";
+import { createFileRoute } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { profileQueryOptions } from "@/api/queries/options";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { useJobApplication } from "@/hooks/useJobApplication";
 import { useMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
@@ -13,8 +14,15 @@ import { MatchedJobsGridLayout } from "@/components/matched-jobs/MatchedJobsGrid
 import type { PipelineJob } from "@/components/matched-jobs/HighMatchPipelineSidebar";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
-export default function MatchedJobs() {
-  const { profile } = useOutletContext<OutletContextType>();
+export const Route = createFileRoute("/_authenticated/job-matches")({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(profileQueryOptions());
+  },
+  component: MatchedJobs,
+});
+
+function MatchedJobs() {
+  const { data: profile } = useSuspenseQuery(profileQueryOptions());
 
   // Custom hooks for state management
   const {

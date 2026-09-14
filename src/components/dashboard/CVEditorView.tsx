@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { useReactToPrint } from "react-to-print";
 import {
   Sparkles,
@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { OutletContextType } from "@/components/layout/RootLayout";
+import type { ProfileData } from "@/api/types";
+import { cvService } from "@/api/services";
 import { useCVStore } from "@/stores/cvStore";
-import { apiClient } from "@/utils/api";
 
 /** Mock suggested change */
 const MOCK_SUGGESTED_CHANGE = {
@@ -26,10 +26,10 @@ const MOCK_SUGGESTED_CHANGE = {
 };
 
 interface CVEditorViewProps {
-  profile: OutletContextType["profile"];
+  profile: ProfileData | null;
 }
 
-function RegenerateButton({ navigate }: { navigate: (path: string) => void }) {
+function RegenerateButton({ navigate }: { navigate: () => void }) {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const { updatePersonalInfo } = useCVStore();
 
@@ -37,18 +37,7 @@ function RegenerateButton({ navigate }: { navigate: (path: string) => void }) {
     try {
       setIsRegenerating(true);
 
-      const response = await apiClient("/profiles/cv/regenerate", {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || "Failed to regenerate CV");
-      }
-
-      const data = await response.json();
+      const data = await cvService.regenerate();
 
       if (data.success) {
         // Update CV store with optimized summary if available
@@ -75,7 +64,7 @@ function RegenerateButton({ navigate }: { navigate: (path: string) => void }) {
         alert(`CV optimized successfully!\n\n${message}`);
 
         // Navigate to CV editor to see changes
-        navigate("/cv-editor");
+        navigate();
       } else {
         throw new Error(data.error || "Unknown error");
       }
@@ -306,7 +295,7 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
               and reframed your experience to match 2025 Principal Engineer
               hiring trends.
             </p>
-            <RegenerateButton navigate={navigate} />
+            <RegenerateButton navigate={() => navigate({ to: "/cv-editor" })} />
           </div>
           <div className="glass-card rounded-3xl p-6 border-transparent">
             <h3 className="text-base font-semibold text-white flex items-center gap-2 mb-4">

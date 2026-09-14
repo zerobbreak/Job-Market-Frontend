@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
-import { apiClient } from "@/utils/api";
+import { useState, useMemo, useEffect } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import ApplicationsList from "@/components/ApplicationsList";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardContent } from "@/components/ui/card";
+import { applicationsQueryOptions } from "@/api/queries/options";
 import {
   BarChart3,
   TrendingUp,
@@ -12,56 +14,34 @@ import {
   Activity,
 } from "lucide-react";
 
-interface Application {
-  id: string;
-  jobTitle: string;
-  company: string;
-  jobUrl?: string;
-  location?: string;
-  status: "pending" | "applied" | "interview" | "rejected";
-  appliedDate: string;
-  files?: { cv: string; cover_letter: string; interview_prep?: string };
-}
+const LIMIT = 10;
 
-export default function Applications() {
-  const [applications, setApplications] = useState<Application[]>([]);
+export const Route = createFileRoute("/_authenticated/applications")({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(applicationsQueryOptions(1, LIMIT));
+  },
+  component: Applications,
+});
+
+function Applications() {
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const toast = useToast();
 
-  const API_ORIGIN = (
-    import.meta.env.VITE_API_URL || "http://localhost:8000/api"
-  ).replace(/\/api$/, "");
+  const { data, isLoading, isError } = useQuery(applicationsQueryOptions(page, LIMIT));
 
-  const fetchApplications = async (p: number) => {
-    setLoading(true);
-    try {
-      const response = await apiClient(
-        `/applications?page=${p}&limit=${limit}`,
-      );
-      const data = await response.json();
-      if (data.applications) {
-        setApplications(data.applications);
-        setPage(data.page || p);
-        setTotal(data.total || data.applications.length);
-      }
-    } catch (err) {
-      console.error("Error fetching applications:", err);
+  useEffect(() => {
+    if (isError) {
       toast.show({
         title: "Error",
         description: "Failed to load applications",
         variant: "error",
       });
-    } finally {
-      setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
 
-  useEffect(() => {
-    fetchApplications(1);
-  }, []);
+  const applications = data?.applications ?? [];
+  const total = data?.total ?? 0;
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -171,7 +151,7 @@ export default function Applications() {
       </div>
 
       <div className="glass-panel border-border/50 rounded-2xl overflow-hidden p-6 shadow-xl">
-        {loading && applications.length === 0 ? (
+        {isLoading && applications.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
             Loading application timeline...
@@ -179,10 +159,9 @@ export default function Applications() {
         ) : (
           <ApplicationsList
             applications={applications}
-            API_ORIGIN={API_ORIGIN}
             serverPage={page}
-            serverTotalPages={Math.max(1, Math.ceil(total / limit))}
-            onPageChange={(p) => fetchApplications(p)}
+            serverTotalPages={Math.max(1, Math.ceil(total / LIMIT))}
+            onPageChange={(p) => setPage(p)}
           />
         )}
       </div>

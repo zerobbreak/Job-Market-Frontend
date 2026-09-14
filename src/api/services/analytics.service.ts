@@ -1,4 +1,5 @@
-import { apiClient } from '@/utils/api';
+import { createServerFn } from "@tanstack/react-start";
+import { backendJson } from "@/lib/backend.server";
 
 export interface EngagementAnalytics {
   period_days: number;
@@ -28,7 +29,7 @@ export interface HeatmapData {
     company: string;
     role: string;
     heat_score: number;
-    heat_level: 'high' | 'medium' | 'low';
+    heat_level: "high" | "medium" | "low";
     match_score: number;
     ats_score: number;
     success_probability: number;
@@ -41,55 +42,57 @@ export interface HeatmapData {
   low_heat_count: number;
 }
 
-export const analyticsService = {
-  /**
-   * Get engagement analytics for user's applications
-   */
-  getEngagementAnalytics: async (days: number = 30): Promise<EngagementAnalytics> => {
-    const response = await apiClient(`/analytics/engagement?days=${days}`, {
-      method: 'GET',
-    });
-    const data = await response.json();
-    return data.analytics;
-  },
+const getEngagementAnalyticsFn = createServerFn({ method: "GET" })
+  .validator((data: { days: number }) => data)
+  .handler(async ({ data }): Promise<EngagementAnalytics> => {
+    const res = await backendJson<{ analytics: EngagementAnalytics }>(
+      `/analytics/engagement?days=${data.days}`,
+      { method: "GET" },
+    );
+    return res.analytics;
+  });
 
-  /**
-   * Get application heatmap data (ZipRecruiter-style)
-   */
-  getHeatmap: async (): Promise<HeatmapData> => {
-    const response = await apiClient('/analytics/heatmap', {
-      method: 'GET',
-    });
-    const data = await response.json();
-    return data.heatmap;
-  },
+const getHeatmapFn = createServerFn({ method: "GET" }).handler(async (): Promise<HeatmapData> => {
+  const res = await backendJson<{ heatmap: HeatmapData }>("/analytics/heatmap", { method: "GET" });
+  return res.heatmap;
+});
 
-  /**
-   * Track when user views an application
-   */
-  trackView: async (applicationId: number): Promise<void> => {
-    await apiClient('/analytics/track-view', {
-      method: 'POST',
-      body: JSON.stringify({ application_id: applicationId }),
+const trackViewFn = createServerFn({ method: "POST" })
+  .validator((data: { applicationId: number }) => data)
+  .handler(async ({ data }) => {
+    await backendJson("/analytics/track-view", {
+      method: "POST",
+      body: JSON.stringify({ application_id: data.applicationId }),
     });
-  },
+  });
 
-  /**
-   * Update application status with engagement data
-   */
-  updateStatus: async (
-    applicationId: number,
-    status: string,
-    additionalData?: Record<string, any>
-  ): Promise<void> => {
-    await apiClient('/analytics/update-status', {
-      method: 'POST',
+const updateStatusFn = createServerFn({ method: "POST" })
+  .validator(
+    (data: { applicationId: number; status: string; additionalData?: Record<string, unknown> }) =>
+      data,
+  )
+  .handler(async ({ data }) => {
+    await backendJson("/analytics/update-status", {
+      method: "POST",
       body: JSON.stringify({
-        application_id: applicationId,
-        status,
-        additional_data: additionalData || {},
+        application_id: data.applicationId,
+        status: data.status,
+        additional_data: data.additionalData || {},
       }),
     });
-  },
-};
+  });
 
+export const analyticsService = {
+  getEngagementAnalytics: (days: number = 30): Promise<EngagementAnalytics> =>
+    getEngagementAnalyticsFn({ data: { days } }),
+
+  getHeatmap: (): Promise<HeatmapData> => getHeatmapFn(),
+
+  trackView: (applicationId: number): Promise<void> => trackViewFn({ data: { applicationId } }),
+
+  updateStatus: (
+    applicationId: number,
+    status: string,
+    additionalData?: Record<string, unknown>,
+  ): Promise<void> => updateStatusFn({ data: { applicationId, status, additionalData } }),
+};

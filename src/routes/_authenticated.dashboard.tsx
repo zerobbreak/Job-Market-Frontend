@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import {
   Briefcase,
   FileText,
@@ -13,8 +15,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useOutletContext } from "react-router-dom";
-import type { OutletContextType } from "@/components/layout/RootLayout";
+import { profileQueryOptions } from "@/api/queries/options";
+import { cvService } from "@/api/services";
+import type { ProfileData } from "@/api/types";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { useMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
 import {
@@ -25,7 +28,6 @@ import { CVAnalysisView } from "@/components/dashboard/CVAnalysisView";
 import { CVEditorView } from "@/components/dashboard/CVEditorView";
 import { CVUploader } from "@/components/profile/CVUploader";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/utils/api";
 import { useToast } from "@/components/ui/toast";
 import { clearMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
 import { track } from "@/utils/analytics";
@@ -34,7 +36,20 @@ export type DashboardTab = "job-feed" | "cv-analysis" | "cv-editor";
 
 type FeedFilter = "all" | "specialized" | "remote";
 
-function profileStrengthScore(profile: OutletContextType["profile"]): number {
+const dashboardSearchSchema = z.object({
+  tab: z.enum(["job-feed", "cv-analysis", "cv-editor"]).optional(),
+});
+
+export const Route = createFileRoute("/_authenticated/dashboard")({
+  validateSearch: dashboardSearchSchema,
+  loaderDeps: ({ search }) => ({ tab: search.tab }),
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(profileQueryOptions());
+  },
+  component: Dashboard,
+});
+
+function profileStrengthScore(profile: ProfileData | null): number {
   if (!profile) return 0;
   let s = 0;
   if (profile.name) s += 10;
@@ -49,27 +64,23 @@ function profileStrengthScore(profile: OutletContextType["profile"]): number {
   return s;
 }
 
-export default function Dashboard() {
-  const { profile, setProfile } = useOutletContext<OutletContextType>();
+function Dashboard() {
+  const { data: profile } = useSuspenseQuery(profileQueryOptions());
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { tab: tabParam } = Route.useSearch();
+  const routeNavigate = Route.useNavigate();
 
   const handleCVUpload = async (file: File) => {
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append("cv_file", file);
-      const response = await apiClient("/profiles/cv/analyze", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      const extractedProfile = data.profile || data.cv_details?.profile;
+      const data = await cvService.upload(file);
+      const extractedProfile = data.profile;
 
       if (data.success && extractedProfile) {
-        setProfile(extractedProfile);
+        queryClient.setQueryData(profileQueryOptions().queryKey, extractedProfile);
         clearMatchedJobsCache();
         await findMatches(true);
         track(
@@ -101,12 +112,7 @@ export default function Dashboard() {
     }
   };
 
-  const tabParam = searchParams.get("tab") as DashboardTab | null;
-  const [mainTab, setMainTab] = useState<DashboardTab>(
-    tabParam && ["job-feed", "cv-analysis", "cv-editor"].includes(tabParam)
-      ? tabParam
-      : "job-feed",
-  );
+  const [mainTab, setMainTab] = useState<DashboardTab>(tabParam ?? "job-feed");
 
   const {
     matchedJobs,
@@ -124,16 +130,12 @@ export default function Dashboard() {
 
   // Sync tab with URL
   useEffect(() => {
-    const t = searchParams.get("tab");
-    if (t && ["job-feed", "cv-analysis", "cv-editor"].includes(t))
-      setMainTab(t as DashboardTab);
-  }, [searchParams]);
+    if (tabParam) setMainTab(tabParam);
+  }, [tabParam]);
 
   const setTab = (t: DashboardTab) => {
     setMainTab(t);
-    const next = new URLSearchParams(searchParams);
-    next.set("tab", t);
-    setSearchParams(next, { replace: true });
+    routeNavigate({ search: (prev) => ({ ...prev, tab: t }), replace: true });
   };
 
   const feedLoading = loading || cacheLoading;
@@ -385,7 +387,7 @@ export default function Dashboard() {
                   now. Try expanding your search criteria.
                 </p>
                 <Button
-                  onClick={() => navigate("/job-matches")}
+                  onClick={() => navigate({ to: "/job-matches" })}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
                 >
                   Explore All Matches
@@ -525,7 +527,7 @@ export default function Dashboard() {
                         )}
                         <Button
                           className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-base font-medium"
-                          onClick={() => navigate("/job-matches")}
+                          onClick={() => navigate({ to: "/job-matches" })}
                         >
                           Apply with Cockpit AI
                         </Button>
@@ -612,5 +614,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-

@@ -1,10 +1,9 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { FileText, Upload, AlertTriangle, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { OutletContextType } from "@/components/layout/RootLayout";
-import type { CVAnalysisSkillGap } from "@/api/types";
+import type { ProfileData, CVAnalysisSkillGap } from "@/api/types";
 import { cn } from "@/lib/utils";
 
 /** Keywords we treat as "highlighted" in the summary (e.g. from job trends) */
@@ -81,7 +80,7 @@ function impactLabel(impact: string): string {
 }
 
 interface CVAnalysisViewProps {
-  profile: OutletContextType["profile"];
+  profile: ProfileData | null;
 }
 
 export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
@@ -98,7 +97,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
         </p>
         <Button
           className="bg-primary hover:bg-primary/90"
-          onClick={() => navigate("/profile")}
+          onClick={() => navigate({ to: "/profile" })}
         >
           <Upload className="h-4 w-4 mr-2" />
           Upload CV
@@ -147,7 +146,7 @@ export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
               variant="outline"
               size="sm"
               className="border-white/20 text-zinc-300 hover:bg-white/10 hover:text-white"
-              onClick={() => navigate("/profile")}
+              onClick={() => navigate({ to: "/profile" })}
             >
               <Upload className="h-4 w-4 mr-2" />
               Update CV

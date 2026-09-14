@@ -1,18 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
-import { account, PROJECT_ID, API_ENDPOINT } from "../utils/appwrite";
-import { ID } from "appwrite";
-import { clearApiCache } from "../utils/api";
-
-interface User {
-  $id: string;
-  name: string;
-  email: string;
-  [key: string]: any;
-}
+import { useRouter, useRouteContext } from "@tanstack/react-router";
+import { loginFn, logoutFn, registerFn } from "@/lib/auth";
+import type { SessionUser } from "@/lib/auth";
 
 interface AuthContextType {
-  user: User | null;
+  user: SessionUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
@@ -21,65 +14,49 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * User/session state comes from the root route's `beforeLoad` (server-verified,
+ * no client fetch/flash). This provider just exposes it plus the auth actions,
+ * which call server functions and then invalidate the router so `beforeLoad`
+ * re-runs and picks up the fresh session.
+ */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkUserStatus();
-
-    const handleAuthFailure = () => {
-      logout();
-    };
-
-    window.addEventListener("auth:failure", handleAuthFailure);
-    return () => window.removeEventListener("auth:failure", handleAuthFailure);
-  }, []);
-
-  const checkUserStatus = async () => {
-    if (!PROJECT_ID || !API_ENDPOINT) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-    try {
-      const accountDetails = await account.get();
-      setUser(accountDetails);
-    } catch (_) {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { user } = useRouteContext({ from: "__root__" }) as { user: SessionUser | null };
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
 
   const login = async (email: string, password: string) => {
-    if (!PROJECT_ID || !API_ENDPOINT) {
-      throw new Error("Authentication service not configured");
+    setPending(true);
+    try {
+      await loginFn({ data: { email, password } });
+      await router.invalidate();
+    } finally {
+      setPending(false);
     }
-    await account.createEmailPasswordSession(email, password);
-    await checkUserStatus();
   };
 
   const register = async (email: string, password: string, name: string) => {
-    if (!PROJECT_ID || !API_ENDPOINT) {
-      throw new Error("Authentication service not configured");
+    setPending(true);
+    try {
+      await registerFn({ data: { email, password, name } });
+      await router.invalidate();
+    } finally {
+      setPending(false);
     }
-    await account.create(ID.unique(), email, password, name);
-    await login(email, password);
   };
 
   const logout = async () => {
-    if (!PROJECT_ID || !API_ENDPOINT) {
-      setUser(null);
-      return;
+    setPending(true);
+    try {
+      await logoutFn();
+      await router.invalidate();
+    } finally {
+      setPending(false);
     }
-    await account.deleteSession("current");
-    clearApiCache();
-    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading: pending, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

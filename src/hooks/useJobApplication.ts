@@ -7,7 +7,7 @@
  * Do not reorder hooks or add conditional hooks.
  */
 import { useState, useRef, useEffect } from "react";
-import { apiClient } from "@/utils/api";
+import { jobsService } from "@/api/services";
 import { useToast } from "@/components/ui/toast";
 import { track } from "@/utils/analytics";
 import type { Job } from "./useJobMatching";
@@ -73,9 +73,7 @@ export function useJobApplication() {
   const [applying, setApplying] = useState(false);
   const [applyAttempts] = useState(0);
   const [applyMaxAttempts] = useState(40);
-  const [currentApplyJobId, setCurrentApplyJobId] = useState<string | null>(
-    null,
-  );
+  const [, setCurrentApplyJobId] = useState<string | null>(null);
   const [pendingJob, setPendingJob] = useState<Job | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [applyTemplate, setApplyTemplate] = useState<
@@ -100,8 +98,8 @@ export function useJobApplication() {
   } | null>(null);
 
   // Automation state hooks
-  const [isAutoApplying, setIsAutoApplying] = useState(false);
-  const [automationStatus, setAutomationStatus] = useState<string>("");
+  const [isAutoApplying] = useState(false);
+  const [automationStatus] = useState<string>("");
 
   // Ref hooks (after state)
   const applyCancelledRef = useRef(false);
@@ -161,23 +159,7 @@ export function useJobApplication() {
     setError("");
 
     try {
-      const startResp = await apiClient("/jobs/apply-preview", {
-        method: "POST",
-        body: JSON.stringify({
-          job: pendingJob,
-          template: applyTemplate,
-        }),
-      });
-
-      if (!startResp.ok) {
-        if (startResp.status === 401) {
-          throw new Error("You must be logged in to generate a preview.");
-        }
-        const errorText = await startResp.text();
-        throw new Error(`Server error: ${startResp.status} - ${errorText}`);
-      }
-
-      const startData = await startResp.json();
+      const startData = await jobsService.startApplyPreview(pendingJob, applyTemplate);
       if (!startData.success || !startData.job_id) {
         throw new Error(startData.error || "Failed to start preview");
       }
@@ -194,30 +176,17 @@ export function useJobApplication() {
 
       while (attempts < maxAttempts) {
         try {
-          const statusResp = await apiClient(
-            `/jobs/apply-preview/${jobId}/status`,
-            {
-              method: "GET",
-            },
-          );
+          const statusData = await jobsService.getApplyPreviewStatus(jobId);
 
-          if (!statusResp.ok) {
-            if (statusResp.status === 404) {
-              // Job not found - might have been cleared, wait a bit and retry once
-              if (attempts < 5) {
-                await delay(1000);
-                attempts += 1;
-                continue;
-              }
-              throw new Error("Preview job not found. Please try again.");
+          if (statusData.notFound) {
+            // Job not found - might have been cleared, wait a bit and retry once
+            if (attempts < 5) {
+              await delay(1000);
+              attempts += 1;
+              continue;
             }
-            const errorText = await statusResp.text();
-            throw new Error(
-              `Server error: ${statusResp.status} - ${errorText}`,
-            );
+            throw new Error("Preview job not found. Please try again.");
           }
-
-          const statusData = await statusResp.json();
 
           if (!statusData.success) {
             consecutiveErrors += 1;

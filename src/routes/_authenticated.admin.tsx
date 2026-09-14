@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -13,58 +14,20 @@ import {
   HardDrive,
   CheckCircle2,
 } from "lucide-react";
-import { apiClient } from "@/utils/api";
+import { adminStatsQueryOptions } from "@/api/queries/options";
 import { Progress } from "@/components/ui/progress";
 
-interface HealthData {
-  status: string;
-  task_manager: {
-    active_threads: number;
-    total_processed: number;
-    status: string;
-  };
-  system: {
-    cpu_percent: number;
-    memory_usage_mb: number;
-    uptime_seconds: number;
-  };
-  business_metrics: {
-    recent_job_failures: number;
-    total_applications: number;
-    application_breakdown: Record<string, number>;
-  };
-}
+export const Route = createFileRoute("/_authenticated/admin")({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(adminStatsQueryOptions());
+  },
+  component: AdminDashboard,
+});
 
-export default function AdminDashboard() {
-  const [data, setData] = useState<HealthData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
+function AdminDashboard() {
+  const { data, isLoading, isError } = useQuery(adminStatsQueryOptions());
 
-  const fetchHealth = async () => {
-    try {
-      // Note: In a real app, this would be protected by admin middleware
-      const res = await apiClient("/admin/system-stats");
-      const json = await res.json();
-      if (res.ok) {
-        setData(json);
-        setError("");
-      } else {
-        setError("Failed to fetch system health");
-      }
-    } catch (e) {
-      setError("Network error connecting to backend");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 5000); // Poll every 5s
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading && !data) {
+  if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Activity className="w-8 h-8 animate-pulse text-blue-500" />
@@ -72,12 +35,12 @@ export default function AdminDashboard() {
     );
   }
 
-  if (error && !data) {
+  if (isError && !data) {
     return (
       <div className="p-8 text-center">
         <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-gray-900">System Unavailable</h2>
-        <p className="text-gray-600 mt-2">{error}</p>
+        <p className="text-gray-600 mt-2">Failed to fetch system health</p>
       </div>
     );
   }

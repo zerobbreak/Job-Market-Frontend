@@ -9,7 +9,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import AuthLayout from "./layout/AuthLayout";
 import ForgotPasswordModal from "./ForgotPasswordModal";
 
@@ -36,7 +36,7 @@ const Login: React.FC = () => {
       } else {
         await login(email, password);
       }
-      navigate("/dashboard");
+      navigate({ to: "/dashboard" });
     } catch (err: any) {
       setError(
         err.message || `Failed to ${isRegisterMode ? "register" : "login"}`

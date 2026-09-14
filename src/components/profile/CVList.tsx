@@ -1,18 +1,29 @@
 import { FileText, Loader2, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-import { storage, BUCKET_ID_CVS } from "@/utils/appwrite";
-import type { Models } from "appwrite";
+import { filesService } from "@/api/services";
+import { useToast } from "@/components/ui/toast";
 import { useState } from "react";
 
+export interface CVFile {
+  $id: string;
+  fileId: string;
+  name: string;
+  $createdAt: string;
+  sizeOriginal?: number;
+}
+
 interface CVListProps {
-  files: Models.File[];
+  files: CVFile[];
   isLoading: boolean;
+  bucketId: string;
   onDelete: (fileId: string) => Promise<void>;
 }
 
-export function CVList({ files, isLoading, onDelete }: CVListProps) {
+export function CVList({ files, isLoading, bucketId, onDelete }: CVListProps) {
+  const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const FILES_PER_PAGE = 5;
 
@@ -30,6 +41,23 @@ export function CVList({ files, isLoading, onDelete }: CVListProps) {
       console.error(e);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleView = async (file: CVFile) => {
+    setOpeningId(file.$id);
+    try {
+      const { url } = await filesService.getSignedUrl(file.fileId, bucketId);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Failed to open CV:", error);
+      toast.show({
+        title: "Could not open file",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      });
+    } finally {
+      setOpeningId(null);
     }
   };
 
@@ -59,18 +87,22 @@ export function CVList({ files, isLoading, onDelete }: CVListProps) {
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <div className="flex flex-col min-w-0">
-                <a
-                  href={storage.getFileView(BUCKET_ID_CVS, file.$id)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="truncate font-medium text-foreground hover:text-primary hover:underline transition-colors block max-w-[200px] sm:max-w-md"
+                <button
+                  type="button"
+                  onClick={() => handleView(file)}
+                  disabled={openingId === file.$id}
+                  className="truncate text-left font-medium text-foreground hover:text-primary hover:underline transition-colors block max-w-[200px] sm:max-w-md disabled:opacity-50"
                 >
                   {file.name}
-                </a>
+                </button>
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   Uploaded on {new Date(file.$createdAt).toLocaleDateString()}
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                  {(file.sizeOriginal / 1024 / 1024).toFixed(2)} MB
+                  {file.sizeOriginal ? (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                      {(file.sizeOriginal / 1024 / 1024).toFixed(2)} MB
+                    </>
+                  ) : null}
                 </span>
               </div>
             </div>
@@ -80,16 +112,15 @@ export function CVList({ files, isLoading, onDelete }: CVListProps) {
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
-                asChild
+                onClick={() => handleView(file)}
+                disabled={openingId === file.$id}
+                title="View CV"
               >
-                <a
-                  href={storage.getFileView(BUCKET_ID_CVS, file.$id)}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="View CV"
-                >
+                {openingId === file.$id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
                   <Eye className="h-4 w-4" />
-                </a>
+                )}
               </Button>
               <Button
                 variant="ghost"

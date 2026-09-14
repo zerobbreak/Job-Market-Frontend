@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { jobsService } from '../services';
+import { jobMatchesQueryOptions } from './options';
 
 /**
  * Query hook for getting cached job matches (GET request - no API call)
@@ -7,9 +7,7 @@ import { jobsService } from '../services';
  */
 export const useJobMatches = (enabled = true) => {
   return useQuery({
-    queryKey: ['jobMatches', 'cached'],
-    queryFn: () => jobsService.getCachedMatches(),
-    enabled, // Only fetch when enabled
-    staleTime: 15 * 60 * 1000, // 15 minutes
+    ...jobMatchesQueryOptions(),
+    enabled,
   });
 };

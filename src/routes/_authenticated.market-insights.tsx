@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   TrendingUp,
   Briefcase,
@@ -63,7 +64,11 @@ const topCompanies = [
   { name: "Monzo", role: "Backend Engineer", openRoles: 43, icon: Building2 },
 ];
 
-export default function MarketInsights() {
+export const Route = createFileRoute("/_authenticated/market-insights")({
+  component: MarketInsights,
+});
+
+function MarketInsights() {
   const [activeTab, setActiveTab] = useState("all");
 
   return (

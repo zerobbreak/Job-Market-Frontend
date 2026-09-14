@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { cvService } from '../services';
+import { cvsQueryOptions } from './options';
 
 export const useCVs = () => {
-  return useQuery({
-    queryKey: ['cvs'],
-    queryFn: cvService.list,
-  });
+  return useQuery(cvsQueryOptions());
 };

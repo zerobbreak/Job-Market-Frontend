@@ -1,50 +1,65 @@
-import { apiClient } from "@/utils/api";
+import { createServerFn } from "@tanstack/react-start";
+import { backendFetch, backendJson } from "@/lib/backend.server";
 import type { CVProfile, UploadCVResponse } from "../types";
 
-export const cvService = {
-  /**
-   * List all CVs for the current user
-   */
-  list: async (): Promise<CVProfile[]> => {
-    const response = await apiClient("/profiles", { method: "GET" });
-    const data = await response.json();
-    return data.profiles || [];
-  },
+const listFn = createServerFn({ method: "GET" }).handler(async (): Promise<CVProfile[]> => {
+  const data = await backendJson<{ profiles?: CVProfile[] }>("/profiles", { method: "GET" });
+  return data.profiles || [];
+});
 
-  /**
-   * Upload a new CV
-   */
-  upload: async (file: File, overwrite = false): Promise<UploadCVResponse> => {
+const uploadFn = createServerFn({ method: "POST" })
+  .validator((data: FormData) => data)
+  .handler(async ({ data }): Promise<UploadCVResponse> => {
+    const response = await backendFetch("/profiles/cv/analyze", {
+      method: "POST",
+      body: data,
+    });
+    return response.json();
+  });
+
+interface SimpleResult {
+  success?: boolean;
+  error?: string;
+}
+
+const deleteFn = createServerFn({ method: "POST" })
+  .validator((data: { fileId: string }) => data)
+  .handler(async ({ data }): Promise<SimpleResult> => {
+    return backendJson<SimpleResult>(`/profiles/${data.fileId}`, { method: "DELETE" });
+  });
+
+const setActiveFn = createServerFn({ method: "POST" })
+  .validator((data: { fileId: string }) => data)
+  .handler(async ({ data }): Promise<SimpleResult> => {
+    return backendJson<SimpleResult>(`/profiles/${data.fileId}/activate`, { method: "PUT" });
+  });
+
+const regenerateFn = createServerFn({ method: "POST" }).handler(async () => {
+  return backendJson<{
+    success: boolean;
+    error?: string;
+    optimized_cv?: string;
+    message?: string;
+    keyword_matches?: string[];
+    ats_score?: number;
+  }>("/profiles/cv/regenerate", { method: "POST" });
+});
+
+export const cvService = {
+  list: (): Promise<CVProfile[]> => listFn(),
+
+  upload: (file: File, overwrite = false): Promise<UploadCVResponse> => {
     const formData = new FormData();
     formData.append("cv_file", file);
     if (overwrite) {
       formData.append("overwrite", "true");
     }
-
-    const response = await apiClient("/profiles/cv/analyze", {
-      method: "POST",
-      body: formData,
-    });
-    return response.json();
+    return uploadFn({ data: formData });
   },
 
-  /**
-   * Delete a CV by file ID
-   */
-  delete: async (fileId: string) => {
-    const response = await apiClient(`/profiles/${fileId}`, {
-      method: "DELETE",
-    });
-    return response.json();
-  },
+  delete: (fileId: string) => deleteFn({ data: { fileId } }),
 
-  /**
-   * Set a CV as active
-   */
-  setActive: async (fileId: string) => {
-    const response = await apiClient(`/profiles/${fileId}/activate`, {
-      method: "PUT",
-    });
-    return response.json();
-  },
+  setActive: (fileId: string) => setActiveFn({ data: { fileId } }),
+
+  regenerate: () => regenerateFn(),
 };

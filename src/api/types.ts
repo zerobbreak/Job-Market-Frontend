@@ -19,6 +19,8 @@ export interface ProfileData {
   education: string;
   strengths: string[];
   career_goals: string;
+  notification_enabled?: boolean;
+  notification_threshold?: number;
   links?: {
     linkedin: string;
     github: string;

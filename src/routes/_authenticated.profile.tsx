@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useOutletContext, useNavigate } from "react-router-dom";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
   User,
   Award,
@@ -25,22 +26,47 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/components/ui/toast";
-import { apiClient } from "@/utils/api";
+import { useAuth } from "@/context/AuthContext";
 import { track } from "@/utils/analytics";
-import type { Models } from "appwrite";
-import type { OutletContextType } from "@/components/layout/RootLayout";
+import { profileQueryOptions } from "@/api/queries/options";
+import { cvService, profileService, jobsService } from "@/api/services";
+import type { ProfileData } from "@/api/types";
 import { CVUploader } from "@/components/profile/CVUploader";
-import { CVList } from "@/components/profile/CVList";
+import { CVList, type CVFile } from "@/components/profile/CVList";
 import { TagInput } from "@/components/ui/tag-input";
 
-export default function Profile() {
-  const { profile, setProfile } = useOutletContext<OutletContextType>();
+export const Route = createFileRoute("/_authenticated/profile")({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(profileQueryOptions());
+  },
+  component: ProfilePage,
+});
+
+const emptyProfile: ProfileData = {
+  name: "",
+  email: "",
+  phone: "",
+  location: "",
+  skills: [],
+  experience_level: "",
+  education: "",
+  strengths: [],
+  career_goals: "",
+  notification_enabled: false,
+  notification_threshold: 70,
+};
+
+function ProfilePage() {
+  const { data: profile } = useSuspenseQuery(profileQueryOptions());
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const bucketId = `cvs/${user?.id ?? ""}`;
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
-  const [files, setFiles] = useState<Models.File[]>([]);
+  const [files, setFiles] = useState<CVFile[]>([]);
   const [fileLoading, setFileLoading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
 
@@ -52,23 +78,15 @@ export default function Profile() {
   const fetchFiles = async () => {
     try {
       setFileLoading(true);
-      // Use authenticated API endpoint that filters by user ID
-      // Backend route is /api/list (no /profile prefix)
-      const response = await apiClient("/profiles");
-      const data = await response.json();
-
-      if (data.success && data.profiles) {
-        // Map API response to Models.File-like format for CVList component
-        const mappedFiles = data.profiles.map((profile: any) => ({
-          $id: profile.$id, // Use Profile ID, not File ID, for deletion to work
-          name: profile.cv_filename || "CV.pdf",
-          $createdAt: profile.$createdAt,
-          $updatedAt: profile.$updatedAt,
-        }));
-        setFiles(mappedFiles);
-      } else {
-        setFiles([]);
-      }
+      const cvs = await cvService.list();
+      setFiles(
+        cvs.map((cv) => ({
+          $id: cv.$id, // Use Profile ID, not File ID, for deletion to work
+          fileId: cv.cv_file_id, // Actual storage key, needed to mint a signed view URL
+          name: cv.cv_filename || "CV.pdf",
+          $createdAt: cv.$createdAt,
+        })),
+      );
     } catch (error) {
       console.error("Error fetching files:", error);
       setFiles([]);
@@ -79,13 +97,8 @@ export default function Profile() {
 
   const handleDeleteFile = async (fileId: string) => {
     try {
-      // Use authenticated API endpoint for deletion
-      const response = await apiClient(`/profiles/${fileId}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-
-      if (data.success) {
+      const data = await cvService.delete(fileId);
+      if ((data as { success?: boolean }).success !== false) {
         toast.show({
           title: "File deleted",
           description: "CV has been removed.",
@@ -93,7 +106,7 @@ export default function Profile() {
         });
         fetchFiles(); // refresh list
       } else {
-        throw new Error(data.error || "Delete failed");
+        throw new Error((data as { error?: string }).error || "Delete failed");
       }
     } catch (error) {
       console.error("Error deleting file:", error);
@@ -106,21 +119,7 @@ export default function Profile() {
   };
 
   // Local editing state - initialized from profile or empty
-  const [editForm, setEditForm] = useState(
-    profile || {
-      name: "",
-      email: "",
-      phone: "",
-      location: "",
-      skills: [],
-      experience_level: "",
-      education: "",
-      strengths: [],
-      career_goals: "",
-      notification_enabled: false,
-      notification_threshold: 70,
-    },
-  );
+  const [editForm, setEditForm] = useState<ProfileData>(profile || emptyProfile);
 
   // Sync local state with profile when it loads asynchronously
   useEffect(() => {
@@ -134,68 +133,36 @@ export default function Profile() {
     setLoading(true);
 
     try {
-      const response = await apiClient("/profiles/me", {
-        method: "PUT",
-        body: JSON.stringify(editForm),
-      });
+      const data = (await profileService.update(editForm)) as {
+        success?: boolean;
+        profile?: ProfileData;
+        error?: string;
+      };
 
-      // Check if response is OK before parsing JSON
-      if (!response.ok) {
-        // Try to parse error response, but handle non-JSON gracefully
-        let errorMessage = `Server error: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // If response is not JSON (e.g., HTML error page), use status text
-          errorMessage = response.statusText || errorMessage;
-        }
-
-        toast.show({
-          title: "Save failed",
-          description: errorMessage,
-          variant: "error",
-        });
-        return;
-      }
-
-      // Parse successful response
-      let data;
-      try {
-        data = await response.json();
-      } catch (err) {
-        console.error("Failed to parse response:", err);
-        toast.show({
-          title: "Error",
-          description: "Invalid response from server",
-          variant: "error",
-        });
-        return;
-      }
-
-      if (data.success) {
-        // Use the profile data from the server response (source of truth)
-        const updatedProfile = data.profile || editForm;
-        setProfile(updatedProfile); // Update global state with server response
-        setEditForm(updatedProfile); // Sync local form state
-        setIsEditing(false);
-        toast.show({
-          title: "Profile saved",
-          description: "Your changes have been saved",
-          variant: "success",
-        });
-        track(
-          "profile_saved",
-          { notification_enabled: updatedProfile.notification_enabled },
-          "app",
-        );
-      } else {
+      if (data.success === false) {
         toast.show({
           title: "Save failed",
           description: data.error || "Failed to update profile",
           variant: "error",
         });
+        return;
       }
+
+      // Use the profile data from the server response (source of truth)
+      const updatedProfile = data.profile || editForm;
+      queryClient.setQueryData(profileQueryOptions().queryKey, updatedProfile);
+      setEditForm(updatedProfile);
+      setIsEditing(false);
+      toast.show({
+        title: "Profile saved",
+        description: "Your changes have been saved",
+        variant: "success",
+      });
+      track(
+        "profile_saved",
+        { notification_enabled: updatedProfile.notification_enabled },
+        "app",
+      );
     } catch (err) {
       console.error("Error saving profile:", err);
       const errorMessage =
@@ -213,31 +180,21 @@ export default function Profile() {
   const handleCVUpload = async (file: File) => {
     try {
       setLoading(true);
-      const formData = new FormData();
-      formData.append("cv_file", file);
-
-      const response = await apiClient("/profiles/cv/analyze", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      const extractedProfile = data.profile || data.cv_details?.profile;
+      const data = await cvService.upload(file);
+      const extractedProfile = data.profile;
 
       if (data.success && extractedProfile) {
-        setProfile(extractedProfile);
+        queryClient.setQueryData(profileQueryOptions().queryKey, extractedProfile);
         setEditForm(extractedProfile); // Update local form too
         setIsEditing(false);
 
         // Prime matches immediately after successful CV upload.
         try {
-          await apiClient("/jobs/matches", {
-            method: "POST",
-            body: JSON.stringify({
-              location: extractedProfile.location || "South Africa",
-              max_results: 20,
-              min_score: 0.0,
-              force_refresh: true,
-            }),
+          await jobsService.findMatches({
+            location: extractedProfile.location || "South Africa",
+            max_results: 20,
+            min_score: 0.0,
+            force_refresh: true,
           });
         } catch (matchErr) {
           console.warn("Match refresh after upload failed:", matchErr);
@@ -247,7 +204,7 @@ export default function Profile() {
           description: "Your profile has been generated.",
           variant: "success",
         });
-        track("profile_cv_uploaded", { filename: data.cv_filename }, "profile");
+        track("profile_cv_uploaded", {}, "profile");
         fetchFiles(); // Refresh file list
         setShowUpload(false); // Hide upload box after success
       } else {
@@ -290,7 +247,7 @@ export default function Profile() {
           <CVUploader onUpload={handleCVUpload} isUploading={loading} />
 
           <Button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate({ to: "/dashboard" })}
             variant="ghost"
             className="text-muted-foreground hover:text-primary"
           >
@@ -390,6 +347,7 @@ export default function Profile() {
                     <CVList
                       files={files}
                       isLoading={fileLoading}
+                      bucketId={bucketId}
                       onDelete={handleDeleteFile}
                     />
                   </div>
@@ -741,5 +699,3 @@ export default function Profile() {
     </div>
   );
 }
-
-
