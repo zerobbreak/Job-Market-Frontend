@@ -1,26 +1,9 @@
 import { useState, useEffect } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import {
-  User,
-  Award,
-  Briefcase,
-  FileText,
-  TrendingUp,
-  Target,
-  Loader2,
-  Plus,
-  X,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -33,7 +16,9 @@ import { cvService, profileService, jobsService } from "@/api/services";
 import type { ProfileData } from "@/api/types";
 import { CVUploader } from "@/components/profile/CVUploader";
 import { CVList, type CVFile } from "@/components/profile/CVList";
+import { ProfileStrength } from "@/components/profile/ProfileStrength";
 import { TagInput } from "@/components/ui/tag-input";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   loader: async ({ context }) => {
@@ -56,6 +41,89 @@ const emptyProfile: ProfileData = {
   notification_threshold: 70,
 };
 
+const CONTACT_FIELDS = [
+  ["name", "Full name", "Thandi Mokoena"],
+  ["email", "Email", "you@example.com"],
+  ["phone", "Phone", "+27 82 000 0000"],
+  ["location", "Location", "Johannesburg, Gauteng"],
+] as const;
+
+const cardClass =
+  "rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+
+/** Education can arrive as text or as a parsed list from the CV. */
+function formatEducation(education: unknown): string {
+  if (!education) return "";
+  if (typeof education === "string") return education;
+  if (Array.isArray(education)) {
+    return education
+      .map((e: any) =>
+        typeof e === "string" ? e : [e?.degree, e?.institution].filter(Boolean).join(", "),
+      )
+      .filter(Boolean)
+      .join("; ");
+  }
+  return "";
+}
+
+/** Drops entries that are really section headings or run-together text. */
+function isRealSkill(skill: string) {
+  if (skill.length > 40) return false;
+  if (
+    skill.length > 20 &&
+    /programming|languages|frameworks|tools|additional|skills/i.test(skill)
+  )
+    return false;
+  return true;
+}
+
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-t border-neutral-100 px-5 py-6 first:border-t-0 sm:px-6">
+      <div className="mb-4">
+        <h2 className="font-medium text-neutral-900">{title}</h2>
+        {description && <p className="mt-0.5 text-sm text-neutral-500">{description}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <Label htmlFor={htmlFor} className="mb-1.5 block text-sm font-normal text-neutral-500">
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function Value({ children }: { children?: ReactNode }) {
+  return children ? (
+    <p className="break-words text-neutral-900">{children}</p>
+  ) : (
+    <p className="text-neutral-400">Not added yet</p>
+  );
+}
+
 function ProfilePage() {
   const { data: profile } = useSuspenseQuery(profileQueryOptions());
   const queryClient = useQueryClient();
@@ -64,7 +132,6 @@ function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
-  const navigate = useNavigate();
 
   const [files, setFiles] = useState<CVFile[]>([]);
   const [fileLoading, setFileLoading] = useState(false);
@@ -99,11 +166,7 @@ function ProfilePage() {
     try {
       const data = await cvService.delete(fileId);
       if ((data as { success?: boolean }).success !== false) {
-        toast.show({
-          title: "File deleted",
-          description: "CV has been removed.",
-          variant: "success",
-        });
+        toast.show({ title: "CV deleted", variant: "success" });
         fetchFiles(); // refresh list
       } else {
         throw new Error((data as { error?: string }).error || "Delete failed");
@@ -111,8 +174,8 @@ function ProfilePage() {
     } catch (error) {
       console.error("Error deleting file:", error);
       toast.show({
-        title: "Delete failed",
-        description: "Could not delete file.",
+        title: "Couldn't delete that CV",
+        description: "Please try again.",
         variant: "error",
       });
     }
@@ -128,6 +191,16 @@ function ProfilePage() {
     }
   }, [profile, isEditing]);
 
+  const startEditing = () => {
+    if (profile) setEditForm(profile);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    if (profile) setEditForm(profile);
+    setIsEditing(false);
+  };
+
   const handleSaveProfile = async () => {
     if (!editForm) return;
     setLoading(true);
@@ -141,8 +214,8 @@ function ProfilePage() {
 
       if (data.success === false) {
         toast.show({
-          title: "Save failed",
-          description: data.error || "Failed to update profile",
+          title: "Couldn't save your profile",
+          description: data.error || "Please try again.",
           variant: "error",
         });
         return;
@@ -153,11 +226,7 @@ function ProfilePage() {
       queryClient.setQueryData(profileQueryOptions().queryKey, updatedProfile);
       setEditForm(updatedProfile);
       setIsEditing(false);
-      toast.show({
-        title: "Profile saved",
-        description: "Your changes have been saved",
-        variant: "success",
-      });
+      toast.show({ title: "Profile saved", variant: "success" });
       track(
         "profile_saved",
         { notification_enabled: updatedProfile.notification_enabled },
@@ -165,11 +234,9 @@ function ProfilePage() {
       );
     } catch (err) {
       console.error("Error saving profile:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to connect to server";
       toast.show({
-        title: "Error",
-        description: errorMessage,
+        title: "Couldn't save your profile",
+        description: err instanceof Error ? err.message : "Please check your connection.",
         variant: "error",
       });
     } finally {
@@ -200,8 +267,8 @@ function ProfilePage() {
           console.warn("Match refresh after upload failed:", matchErr);
         }
         toast.show({
-          title: "CV analyzed",
-          description: "Your profile has been generated.",
+          title: "Your profile is ready",
+          description: "We read your CV and updated your details.",
           variant: "success",
         });
         track("profile_cv_uploaded", {}, "profile");
@@ -209,16 +276,16 @@ function ProfilePage() {
         setShowUpload(false); // Hide upload box after success
       } else {
         toast.show({
-          title: "Analyze failed",
-          description: data.error || "Failed to analyze CV",
+          title: "We couldn't read that CV",
+          description: data.error || "Please try again, or upload a different file.",
           variant: "error",
         });
       }
     } catch (e) {
       console.error(e);
       toast.show({
-        title: "Upload error",
-        description: "Error uploading CV. Please try again.",
+        title: "Upload failed",
+        description: "Please check your connection and try again.",
         variant: "error",
       });
     } finally {
@@ -227,474 +294,282 @@ function ProfilePage() {
   };
 
   if (!profile) {
-    // Initial State: No profile, Force Upload
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center animate-fade-in">
-        <div className="w-full max-w-md space-y-8">
-          <div className="space-y-2">
-            <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-primary/5">
-              <User className="h-10 w-10 text-primary" />
-            </div>
-            <h2 className="text-3xl font-bold tracking-tight text-foreground">
-              Welcome to Job Market
-            </h2>
-            <p className="text-muted-foreground">
-              Upload your CV to generate your AI profile and start matching with
-              jobs instantly.
-            </p>
+      <div className="mx-auto max-w-2xl py-4 md:py-12">
+        <p className="mb-4 text-sm text-neutral-500">Profile</p>
+        <h1 className="mb-4 text-4xl font-semibold leading-[1.08] tracking-tight text-balance md:text-5xl">
+          Your profile starts with your CV.{" "}
+          <span className="text-neutral-400">Upload it and we&apos;ll fill in the rest.</span>
+        </h1>
+        <p className="mb-10 max-w-xl text-lg text-neutral-600 text-pretty">
+          We read your details, skills, and experience. You can change anything
+          afterwards.
+        </p>
+        <div className="rounded-2xl border border-neutral-200 bg-[#FAFAF9] p-2 sm:p-3">
+          <div className="rounded-xl border border-neutral-200 bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-3">
+            <CVUploader onUpload={handleCVUpload} isUploading={loading} />
           </div>
-
-          <CVUploader onUpload={handleCVUpload} isUploading={loading} />
-
-          <Button
-            onClick={() => navigate({ to: "/dashboard" })}
-            variant="ghost"
-            className="text-muted-foreground hover:text-primary"
-          >
-            Skip to Dashboard
-          </Button>
         </div>
+        <Link
+          to="/dashboard"
+          className="mt-6 inline-block text-sm text-neutral-500 transition-colors hover:text-neutral-900"
+        >
+          Skip for now
+        </Link>
       </div>
     );
   }
 
+  const visibleSkills = (profile.skills || []).filter(isRealSkill);
+  const alertsOn = isEditing ? editForm.notification_enabled : profile.notification_enabled;
+  const threshold = isEditing
+    ? (editForm.notification_threshold ?? 70)
+    : (profile.notification_threshold ?? 70);
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pb-10 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-8 pb-10">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            My Profile
+          <p className="mb-2 text-sm text-neutral-500">Profile</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
+            {profile.name || "Your profile"}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your professional profile and resume
+          <p className="mt-2 max-w-xl text-neutral-600 text-pretty">
+            This is what we match jobs against. The more accurate it is, the
+            better your matches.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            if (isEditing) handleSaveProfile();
-            else {
-              setEditForm(profile);
-              setIsEditing(true);
-            }
-          }}
-          variant={isEditing ? "default" : "secondary"}
-          disabled={loading}
-          className="w-full sm:w-auto shadow-sm"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          {isEditing ? "Save Changes" : "Edit Profile"}
-        </Button>
-      </div>
+        <div className="flex gap-2 self-start sm:self-auto">
+          {isEditing ? (
+            <>
+              <Button variant="outline" onClick={cancelEditing} disabled={loading}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveProfile} disabled={loading}>
+                {loading && <Loader2 className="animate-spin" />}
+                Save changes
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={startEditing}>
+              Edit profile
+            </Button>
+          )}
+        </div>
+      </header>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left Column: CV Management */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="glass-card h-full border-border/60 shadow-md flex flex-col">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="h-5 w-5 text-primary" />
-                Resumes
-              </CardTitle>
-              <CardDescription>Manage your uploaded CVs</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-6">
-              {files.length === 0 ? (
-                <div className="flex-1 flex flex-col">
-                  <CVUploader
-                    onUpload={handleCVUpload}
-                    isUploading={loading}
-                    className="flex-1 min-h-[250px] flex justify-center border-dashed! border-2!"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {!showUpload ? (
-                    <Button
-                      onClick={() => setShowUpload(true)}
-                      className="w-full border-dashed border-2 h-16 hover:bg-muted/50 text-muted-foreground hover:text-primary transition-colors"
-                      variant="outline"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Upload New CV
-                    </Button>
-                  ) : (
-                    <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
-                      <div className="flex justify-between items-center px-1">
-                        <h4 className="text-sm font-medium text-muted-foreground">
-                          New Upload
-                        </h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => setShowUpload(false)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <CVUploader
-                        onUpload={handleCVUpload}
-                        isUploading={loading}
-                        className="p-4"
-                      />
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-foreground/80 px-1">
-                      Your Files
-                    </h4>
-                    <CVList
-                      files={files}
-                      isLoading={fileLoading}
-                      bucketId={bucketId}
-                      onDelete={handleDeleteFile}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+        <div className={cardClass}>
+          <Section title="About you">
+            <div className="grid gap-5 sm:grid-cols-2">
+              {CONTACT_FIELDS.map(([key, label, placeholder]) => (
+                <Field key={key} label={label} htmlFor={`profile-${key}`}>
+                  {isEditing ? (
+                    <Input
+                      id={`profile-${key}`}
+                      value={editForm[key]}
+                      onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                      placeholder={placeholder}
                     />
-                  </div>
-                </div>
+                  ) : (
+                    <Value>{profile[key]}</Value>
+                  )}
+                </Field>
+              ))}
+            </div>
+          </Section>
+
+          <Section title="Experience">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Experience level" htmlFor="profile-experience">
+                {isEditing ? (
+                  <Input
+                    id="profile-experience"
+                    value={editForm.experience_level}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, experience_level: e.target.value })
+                    }
+                    placeholder="Graduate, 1 to 2 years"
+                  />
+                ) : (
+                  <Value>{profile.experience_level}</Value>
+                )}
+              </Field>
+              <Field label="Education" htmlFor="profile-education">
+                {isEditing ? (
+                  <Input
+                    id="profile-education"
+                    value={formatEducation(editForm.education)}
+                    onChange={(e) => setEditForm({ ...editForm, education: e.target.value })}
+                    placeholder="BCom, University of Johannesburg"
+                  />
+                ) : (
+                  <Value>{formatEducation(profile.education)}</Value>
+                )}
+              </Field>
+            </div>
+          </Section>
+
+          <Section
+            title="Skills"
+            description={isEditing ? "Separate skills with commas." : undefined}
+          >
+            {isEditing ? (
+              <Textarea
+                value={editForm.skills.join(", ")}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    skills: e.target.value.split(",").map((s) => s.trim()),
+                  })
+                }
+                className="min-h-[96px] rounded-xl border-neutral-200 bg-white"
+                aria-label="Skills"
+              />
+            ) : visibleSkills.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5">
+                {visibleSkills.map((skill, idx) => (
+                  <li
+                    key={`${skill}-${idx}`}
+                    className="rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-sm text-neutral-700"
+                  >
+                    {skill}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Value />
+            )}
+          </Section>
+
+          <Section title="Strengths">
+            {isEditing ? (
+              <TagInput
+                tags={editForm.strengths}
+                setTags={(newTags) => setEditForm({ ...editForm, strengths: newTags })}
+                placeholder="Add a strength, like Problem solving"
+              />
+            ) : (profile.strengths || []).length > 0 ? (
+              <ul className="space-y-2">
+                {profile.strengths.map((strength, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-neutral-700">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-300" />
+                    {strength}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Value />
+            )}
+          </Section>
+
+          <Section title="What you're looking for">
+            {isEditing ? (
+              <Textarea
+                value={editForm.career_goals}
+                onChange={(e) => setEditForm({ ...editForm, career_goals: e.target.value })}
+                rows={4}
+                className="rounded-xl border-neutral-200 bg-white"
+                aria-label="Career goals"
+                placeholder="The kind of role, industry, or next step you want."
+              />
+            ) : profile.career_goals ? (
+              <p className="whitespace-pre-line leading-relaxed text-neutral-700">
+                {profile.career_goals}
+              </p>
+            ) : (
+              <Value />
+            )}
+          </Section>
+
+          <Section title="Job alerts" description="Get an email when a new job fits you well.">
+            <label
+              htmlFor="notifications"
+              className={cn(
+                "flex items-center gap-3 text-neutral-900",
+                isEditing ? "cursor-pointer" : "cursor-default",
               )}
-            </CardContent>
-          </Card>
+            >
+              <input
+                type="checkbox"
+                id="notifications"
+                className="h-4 w-4 rounded border-neutral-300 accent-neutral-900"
+                checked={!!alertsOn}
+                onChange={(e) =>
+                  isEditing &&
+                  setEditForm({ ...editForm, notification_enabled: e.target.checked })
+                }
+                disabled={!isEditing}
+              />
+              Email me about strong matches
+            </label>
+
+            {alertsOn && (
+              <div className="mt-5 max-w-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-baseline justify-between">
+                  <p className="text-sm text-neutral-500">Only jobs that fit at least</p>
+                  <p className="text-sm font-medium tabular-nums">{threshold}%</p>
+                </div>
+                <Slider
+                  value={[threshold]}
+                  onValueChange={(vals) =>
+                    isEditing && setEditForm({ ...editForm, notification_threshold: vals[0] })
+                  }
+                  max={100}
+                  step={5}
+                  disabled={!isEditing}
+                  className="py-4"
+                  aria-label="Minimum fit for alerts"
+                />
+              </div>
+            )}
+          </Section>
         </div>
 
-        {/* Right Column: Profile Details */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="glass-card border-border/60 shadow-md">
-            <CardHeader className="pb-4 border-b border-border/40">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 bg-linear-to-br from-primary to-purple-600 rounded-full flex items-center justify-center shadow-lg ring-4 ring-background">
-                  <User className="h-8 w-8 text-primary-foreground" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl">Profile Details</CardTitle>
-                  <CardDescription>
-                    AI-analyzed information from your CV
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-8 pt-6">
-              {/* Contact Information */}
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-500" />
-                    Full Name
-                  </h4>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.name}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, name: e.target.value })
-                      }
-                      placeholder="John Doe"
-                    />
-                  ) : (
-                    <div className="p-3 bg-muted/30 rounded-lg border border-border/50 text-sm font-medium">
-                      {profile.name || "Not specified"}
+        <aside className="space-y-4 lg:sticky lg:top-8">
+          <ProfileStrength profile={isEditing ? editForm : profile} />
+
+          <div className={cn(cardClass, "p-5")}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-medium text-neutral-900">Your CVs</h2>
+              {files.length > 0 && !showUpload && (
+                <Button variant="ghost" size="sm" onClick={() => setShowUpload(true)}>
+                  <Plus />
+                  Upload
+                </Button>
+              )}
+            </div>
+
+            {files.length === 0 && !fileLoading ? (
+              <CVUploader onUpload={handleCVUpload} isUploading={loading} className="p-6" />
+            ) : (
+              <div className="space-y-4">
+                {showUpload && (
+                  <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-neutral-500">Upload a new CV</p>
+                      <button
+                        type="button"
+                        aria-label="Close upload"
+                        onClick={() => setShowUpload(false)}
+                        className="rounded-full p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-indigo-500" />
-                    Location
-                  </h4>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.location}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, location: e.target.value })
-                      }
-                      placeholder="City, Country"
-                    />
-                  ) : (
-                    <div className="p-3 bg-muted/30 rounded-lg border border-border/50 text-sm font-medium">
-                      {profile.location || "Not specified"}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-teal-500" />
-                    Email
-                  </h4>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.email}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, email: e.target.value })
-                      }
-                      placeholder="email@example.com"
-                    />
-                  ) : (
-                    <div
-                      className="p-3 bg-muted/30 rounded-lg border border-border/50 text-sm font-medium truncate"
-                      title={profile.email}
-                    >
-                      {profile.email || "Not specified"}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-pink-500" />
-                    Phone
-                  </h4>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.phone}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, phone: e.target.value })
-                      }
-                      placeholder="+1 234 567 890"
-                    />
-                  ) : (
-                    <div className="p-3 bg-muted/30 rounded-lg border border-border/50 text-sm font-medium">
-                      {profile.phone || "Not specified"}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Skills */}
-              <div className="space-y-3 pt-4 border-t border-border/50">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    <Award className="h-5 w-5 text-primary" />
-                    Skills
-                  </h4>
-                  {isEditing && (
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                      Comma separated
-                    </span>
-                  )}
-                </div>
-                {isEditing ? (
-                  <Textarea
-                    value={editForm.skills.join(", ")}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        skills: e.target.value.split(",").map((s) => s.trim()),
-                      })
-                    }
-                    className="min-h-[80px]"
-                  />
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {profile.skills.length > 0 ? (
-                      profile.skills.map((skill, idx) => {
-                        // Skip if skill is too long (likely a concatenation error)
-                        if (skill.length > 40) return null;
-                        // Skip if it contains known header words and is somewhat long
-                        if (
-                          skill.length > 20 &&
-                          /programming|languages|frameworks|tools|additional|skills/i.test(
-                            skill,
-                          )
-                        )
-                          return null;
-
-                        return (
-                          <Badge
-                            key={idx}
-                            variant="secondary"
-                            className="bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1 transition-colors"
-                          >
-                            {skill}
-                          </Badge>
-                        );
-                      })
-                    ) : (
-                      <span className="text-muted-foreground text-sm italic">
-                        No skills listed
-                      </span>
-                    )}
+                    <CVUploader onUpload={handleCVUpload} isUploading={loading} className="p-6" />
                   </div>
                 )}
+                <CVList
+                  files={files}
+                  isLoading={fileLoading}
+                  bucketId={bucketId}
+                  onDelete={handleDeleteFile}
+                />
               </div>
-
-              <div className="grid md:grid-cols-2 gap-6 pt-2">
-                {/* Experience */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-purple-500" />
-                    Experience Level
-                  </h4>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.experience_level}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          experience_level: e.target.value,
-                        })
-                      }
-                    />
-                  ) : (
-                    <div className="p-3 bg-muted/30 rounded-lg border border-border/50 text-sm font-medium">
-                      {profile.experience_level || "Not specified"}
-                    </div>
-                  )}
-                </div>
-
-                {/* Education */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-foreground flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-green-500" />
-                    Education
-                  </h4>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.education}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, education: e.target.value })
-                      }
-                    />
-                  ) : (
-                    <div
-                      className="p-3 bg-muted/30 rounded-lg border border-border/50 text-sm line-clamp-2"
-                      title={profile.education}
-                    >
-                      {profile.education || "Not specified"}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Strengths */}
-              <div className="space-y-3 pt-2">
-                <h4 className="font-semibold text-foreground flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-orange-500" />
-                  Key Strengths
-                </h4>
-                {isEditing ? (
-                  <TagInput
-                    tags={editForm.strengths}
-                    setTags={(newTags) =>
-                      setEditForm({ ...editForm, strengths: newTags })
-                    }
-                    placeholder="Add a strength (e.g. Leadership)"
-                  />
-                ) : (
-                  <ul className="space-y-2">
-                    {profile.strengths.length > 0 ? (
-                      profile.strengths.map((strength, idx) => (
-                        <li
-                          key={idx}
-                          className="text-sm text-foreground/90 flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="h-2 w-2 rounded-full bg-orange-400 mt-1.5 shrink-0 shadow-sm" />
-                          {strength}
-                        </li>
-                      ))
-                    ) : (
-                      <span className="text-muted-foreground text-sm italic">
-                        No strengths listed
-                      </span>
-                    )}
-                  </ul>
-                )}
-              </div>
-
-              {/* Career Goals */}
-              <div className="space-y-3 pt-2">
-                <h4 className="font-semibold text-foreground flex items-center gap-2">
-                  <Target className="h-5 w-5 text-red-500" />
-                  Career Goals
-                </h4>
-                {isEditing ? (
-                  <Textarea
-                    value={editForm.career_goals}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, career_goals: e.target.value })
-                    }
-                    rows={4}
-                  />
-                ) : (
-                  <div className="text-foreground/80 bg-muted/30 p-4 rounded-lg border border-border/50 text-sm leading-relaxed">
-                    {profile.career_goals || "No career goals specified."}
-                  </div>
-                )}
-              </div>
-
-              {/* Preferences */}
-              <div className="pt-6 border-t border-border/50">
-                <h3 className="text-lg font-semibold mb-4 text-foreground">
-                  Preferences
-                </h3>
-                <div className="space-y-6">
-                  <div className="flex items-center space-x-3 bg-card p-3 rounded-lg border border-border/50">
-                    <input
-                      type="checkbox"
-                      id="notifications"
-                      className="h-5 w-5 rounded border-input text-primary focus:ring-primary/25 bg-background transition-all"
-                      checked={
-                        isEditing
-                          ? !!editForm.notification_enabled
-                          : !!profile.notification_enabled
-                      }
-                      onChange={(e) =>
-                        isEditing &&
-                        setEditForm({
-                          ...editForm,
-                          notification_enabled: e.target.checked,
-                        })
-                      }
-                      disabled={!isEditing}
-                    />
-                    <Label
-                      htmlFor="notifications"
-                      className="cursor-pointer font-medium"
-                    >
-                      Enable email notifications for matches
-                    </Label>
-                  </div>
-
-                  {(isEditing
-                    ? editForm.notification_enabled
-                    : profile.notification_enabled) && (
-                    <div className="space-y-4 max-w-sm pl-1 animate-in slide-in-from-top-2 duration-200">
-                      <div className="flex justify-between items-end">
-                        <Label className="text-sm text-muted-foreground">
-                          Match Score Threshold
-                        </Label>
-                        <Badge variant="outline" className="font-mono">
-                          {isEditing
-                            ? editForm.notification_threshold
-                            : profile.notification_threshold}
-                          %
-                        </Badge>
-                      </div>
-                      <Slider
-                        value={[
-                          isEditing
-                            ? (editForm.notification_threshold ?? 70)
-                            : (profile.notification_threshold ?? 70),
-                        ]}
-                        onValueChange={(vals) =>
-                          isEditing &&
-                          setEditForm({
-                            ...editForm,
-                            notification_threshold: vals[0],
-                          })
-                        }
-                        max={100}
-                        step={5}
-                        disabled={!isEditing}
-                        className="py-4"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );
