@@ -20,7 +20,7 @@ export function LoadingSpinner({
 
   const variantClasses = {
     default: "border-muted-foreground/20 border-t-foreground",
-    primary: "border-blue-500/20 border-t-blue-500",
+    primary: "border-neutral-900/10 border-t-neutral-900",
     success: "border-green-500/20 border-t-green-500",
     warning: "border-yellow-500/20 border-t-yellow-500",
   };
@@ -45,15 +45,15 @@ export function PulseDotsLoader({ className }: PulseDotsProps) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <div
-        className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"
+        className="h-2 w-2 rounded-full bg-neutral-400 animate-pulse"
         style={{ animationDelay: "0ms" }}
       />
       <div
-        className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"
+        className="h-2 w-2 rounded-full bg-neutral-400 animate-pulse"
         style={{ animationDelay: "150ms" }}
       />
       <div
-        className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"
+        className="h-2 w-2 rounded-full bg-neutral-400 animate-pulse"
         style={{ animationDelay: "300ms" }}
       />
     </div>
@@ -90,7 +90,7 @@ export function ProgressBar({
     >
       {indeterminate ? (
         <div
-          className="h-full bg-linear-to-r from-blue-500 to-purple-500 animate-[shimmer_2s_infinite]"
+          className="h-full bg-neutral-900 animate-[shimmer_2s_infinite]"
           style={{
             width: "40%",
             animation: "shimmer 2s ease-in-out infinite",
@@ -98,7 +98,7 @@ export function ProgressBar({
         />
       ) : (
         <div
-          className="h-full bg-linear-to-r from-blue-500 to-purple-500 transition-all duration-300 ease-out"
+          className="h-full bg-neutral-900 transition-all duration-300 ease-out"
           style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
         />
       )}
@@ -124,7 +124,7 @@ export function LoadingOverlay({
         className
       )}
     >
-      <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-card/50 border border-border shadow-2xl">
+      <div className="flex flex-col items-center gap-4 p-8 rounded-2xl bg-white border border-neutral-200 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)]">
         <LoadingSpinner size="lg" variant="primary" />
         <div className="text-center">
           <p className="text-lg font-semibold text-foreground">{message}</p>

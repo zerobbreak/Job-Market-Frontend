@@ -1,18 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
+import type { ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import ApplicationsList from "@/components/ApplicationsList";
 import { useToast } from "@/components/ui/toast";
-import { Card, CardContent } from "@/components/ui/card";
 import { applicationsQueryOptions } from "@/api/queries/options";
-import {
-  BarChart3,
-  TrendingUp,
-  CheckCircle2,
-  MessageSquare,
-  Briefcase,
-  Activity,
-} from "lucide-react";
 
 const LIMIT = 10;
 
@@ -23,6 +15,16 @@ export const Route = createFileRoute("/_authenticated/applications")({
   component: Applications,
 });
 
+function Stat({ label, value, note }: { label: string; value: ReactNode; note?: string }) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <p className="text-sm text-neutral-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
+      {note && <p className="mt-1 text-xs text-neutral-400">{note}</p>}
+    </div>
+  );
+}
+
 function Applications() {
   const [page, setPage] = useState(1);
   const toast = useToast();
@@ -32,8 +34,8 @@ function Applications() {
   useEffect(() => {
     if (isError) {
       toast.show({
-        title: "Error",
-        description: "Failed to load applications",
+        title: "Couldn't load your applications",
+        description: "Please refresh the page to try again.",
         variant: "error",
       });
     }
@@ -43,128 +45,54 @@ function Applications() {
   const applications = data?.applications ?? [];
   const total = data?.total ?? 0;
 
-  // Calculate stats
+  // Status counts come from the page that's loaded
   const stats = useMemo(() => {
-    const totalApps = applications.length;
-    const interviews = applications.filter(
-      (a) => a.status === "interview",
-    ).length;
-    const responses = applications.filter(
-      (a) => a.status !== "pending" && a.status !== "applied",
-    ).length; // any status change from default
-    const successRate =
-      totalApps > 0 ? Math.round((interviews / totalApps) * 100) : 0;
-
-    return { totalApps, interviews, responses, successRate };
+    const onPage = applications.length;
+    const interviews = applications.filter((a) => a.status === "interview").length;
+    const waiting = applications.filter((a) => a.status === "applied").length;
+    const interviewRate = onPage > 0 ? Math.round((interviews / onPage) * 100) : 0;
+    return { interviews, waiting, interviewRate };
   }, [applications]);
 
+  const pageNote = total > LIMIT ? "On this page" : undefined;
+
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Activity className="h-6 w-6 text-primary" />
-            Agent Activity
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Track your automated job application funnel
-          </p>
+    <div className="space-y-8 pb-10">
+      <header>
+        <p className="mb-2 text-sm text-neutral-500">Applications</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
+          Everything you&apos;ve applied for
+        </h1>
+        <p className="mt-2 max-w-xl text-neutral-600 text-pretty">
+          Update the status when you hear back, so you always know what to
+          follow up on.
+        </p>
+      </header>
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Applications" value={total} />
+        <Stat label="Waiting to hear back" value={stats.waiting} note={pageNote} />
+        <Stat label="Interviews" value={stats.interviews} note={pageNote} />
+        <Stat label="Interview rate" value={`${stats.interviewRate}%`} note={pageNote} />
+      </section>
+
+      {isLoading && applications.length === 0 ? (
+        <div className="space-y-3" role="status" aria-label="Loading applications">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-24 animate-pulse rounded-2xl border border-neutral-200 bg-white"
+            />
+          ))}
         </div>
-      </div>
-
-      {/* Top Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="glass-card border-transparent">
-          <CardContent className="p-5 flex items-start gap-4">
-            <div className="p-2.5 bg-primary/20 rounded-xl">
-              <BarChart3 className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                Total Applied
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">
-                  {stats.totalApps}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-transparent">
-          <CardContent className="p-5 flex items-start gap-4">
-            <div className="p-2.5 bg-accent/20 rounded-xl">
-              <MessageSquare className="h-5 w-5 text-accent" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                Responses
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">
-                  {stats.responses}
-                </span>
-                <span className="text-xs font-medium text-emerald-400 flex items-center">
-                  <TrendingUp className="h-3 w-3 mr-0.5" /> +12%
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-transparent">
-          <CardContent className="p-5 flex items-start gap-4">
-            <div className="p-2.5 bg-emerald-500/20 rounded-xl">
-              <Briefcase className="h-5 w-5 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                Interviews
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">
-                  {stats.interviews}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-transparent">
-          <CardContent className="p-5 flex items-start gap-4">
-            <div className="p-2.5 bg-orange-500/20 rounded-xl">
-              <CheckCircle2 className="h-5 w-5 text-orange-400" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                Success Rate
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">
-                  {stats.successRate}%
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="glass-panel border-border/50 rounded-2xl overflow-hidden p-6 shadow-xl">
-        {isLoading && applications.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-            Loading application timeline...
-          </div>
-        ) : (
-          <ApplicationsList
-            applications={applications}
-            serverPage={page}
-            serverTotalPages={Math.max(1, Math.ceil(total / LIMIT))}
-            onPageChange={(p) => setPage(p)}
-          />
-        )}
-      </div>
+      ) : (
+        <ApplicationsList
+          applications={applications}
+          serverPage={page}
+          serverTotalPages={Math.max(1, Math.ceil(total / LIMIT))}
+          onPageChange={(p) => setPage(p)}
+        />
+      )}
     </div>
   );
 }

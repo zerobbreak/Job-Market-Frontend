@@ -1,4 +1,4 @@
-import { Loader2, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ApplicationStatusBannerProps {
@@ -48,169 +48,87 @@ export function ApplicationStatusBanner({
   error,
   onCancel,
 }: ApplicationStatusBannerProps) {
-  // Pre-compute download URLs with null safety
-  const cvUrl = generatedFiles?.cv ? getDownloadUrl(generatedFiles.cv) : null;
-  const coverLetterUrl = generatedFiles?.cover_letter
-    ? getDownloadUrl(generatedFiles.cover_letter)
-    : null;
-  const interviewPrepUrl = generatedFiles?.interview_prep
-    ? getDownloadUrl(generatedFiles.interview_prep)
-    : null;
-  const formDataUrl = generatedFiles?.form_data
-    ? getDownloadUrl(generatedFiles.form_data)
-    : null;
+  const progress = Math.min(
+    100,
+    Math.round((applyAttempts / Math.max(1, applyMaxAttempts)) * 100),
+  );
+
+  const downloads = [
+    { label: "Tailored CV", url: getDownloadUrl(generatedFiles?.cv) },
+    { label: "Cover letter", url: getDownloadUrl(generatedFiles?.cover_letter) },
+    { label: "Interview prep", url: getDownloadUrl(generatedFiles?.interview_prep) },
+    { label: "Auto-fill answers", url: getDownloadUrl(generatedFiles?.form_data) },
+  ].filter((d): d is { label: string; url: string } => !!d.url);
+
   return (
     <>
       {error && (
-        <div className="bg-destructive/15 border border-destructive/20 text-destructive-foreground px-4 py-3 rounded-xl animate-fade-in">
-          {error}
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 animate-in fade-in duration-300"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{error}</p>
         </div>
       )}
 
       {applying && (
-        <div className="bg-blue-500/10 border border-blue-500/20 text-blue-200 px-4 py-3 rounded-xl flex items-center justify-between animate-fade-in p-6 shadow-lg shadow-blue-500/10">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-500/20 rounded-full">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] animate-in fade-in duration-300"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-neutral-400" />
+              <div className="min-w-0">
+                <p className="font-medium text-neutral-900">Tailoring your application</p>
+                <p className="text-sm text-neutral-500">
+                  Rewriting your CV and cover letter for this role
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-blue-900">
-                Generating Application...
-              </h3>
-              <p className="text-sm text-blue-300">
-                Tailoring your CV and writing a cover letter (
-                {Math.min(
-                  100,
-                  Math.round((applyAttempts / applyMaxAttempts) * 100)
-                )}
-                %)
-              </p>
-            </div>
+            <Button variant="outline" size="sm" onClick={onCancel}>
+              Cancel
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            className="hover:bg-blue-100 border-blue-300"
-          >
-            Cancel
-          </Button>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
+              <div
+                className="h-full rounded-full bg-neutral-900 transition-[width] duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs tabular-nums text-neutral-500">{progress}%</span>
+          </div>
         </div>
       )}
 
       {generatedFiles && (
-        <div className="bg-green-500/10 border border-green-500/20 rounded-xl animate-fade-in p-6 shadow-lg shadow-green-500/10">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-green-500/20 rounded-full shrink-0">
-              <CheckCircle className="h-6 w-6 text-green-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-green-100 mb-1">
-                Application Generated Successfully!
-              </h3>
-              <p className="text-sm text-green-300 mb-4">
-                Your tailored CV and cover letter are ready to download.
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 animate-in fade-in duration-300">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-neutral-900">Your application is ready</p>
+              <p className="mt-0.5 text-sm text-neutral-600">
+                Download your files below. They&apos;re also saved on your
+                Applications page.
               </p>
-
-              {/* Download Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {cvUrl && (
-                  <a
-                    href={cvUrl}
-                    download
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium text-sm"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+              {downloads.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {downloads.map((file) => (
+                    <a
+                      key={file.label}
+                      href={file.url}
+                      download
+                      className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-sm font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-neutral-300 hover:bg-neutral-50"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                      />
-                    </svg>
-                    Download CV
-                  </a>
-                )}
-
-                {coverLetterUrl && (
-                  <a
-                    href={coverLetterUrl}
-                    download
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors font-medium text-sm"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                      />
-                    </svg>
-                    Download Cover Letter
-                  </a>
-                )}
-
-                {interviewPrepUrl && (
-                  <a
-                    href={interviewPrepUrl}
-                    download
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors font-medium text-sm"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                      />
-                    </svg>
-                    Download Interview Prep
-                  </a>
-                )}
-
-                {formDataUrl && (
-                  <a
-                    href={formDataUrl}
-                    download
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors font-medium text-sm"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                    Download Auto-Fill Data
-                  </a>
-                )}
-              </div>
-
-              <p className="text-xs text-green-400 mt-3">
-                💡 Files are also saved in your Applications page for future
-                reference.
-              </p>
+                      <Download className="h-3.5 w-3.5" />
+                      {file.label}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -13,33 +13,35 @@ const EditorSidebar: React.FC = () => {
   const { resetCV } = useCVStore();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">CV Editor</h2>
-        <div className="flex gap-2">
-           <Button variant="outline" size="sm" onClick={() => {
-              if (window.confirm('Are you sure you want to reset all data?')) {
-                resetCV();
-              }
-           }}>
-             Reset
-           </Button>
-        </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-medium text-neutral-900">Sections</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (window.confirm("Clear everything in the editor? This can't be undone.")) {
+              resetCV();
+            }
+          }}
+        >
+          Start over
+        </Button>
       </div>
 
       <Accordion>
-        <AccordionItem title="Personal Information" defaultOpen>
+        <AccordionItem title="Personal details" defaultOpen>
           <PersonalInfoForm />
         </AccordionItem>
-        
-        <AccordionItem title="Work Experience">
+
+        <AccordionItem title="Work experience">
           <ExperienceForm />
         </AccordionItem>
-        
+
         <AccordionItem title="Education">
           <EducationForm />
         </AccordionItem>
-        
+
         <AccordionItem title="Skills">
           <SkillsForm />
         </AccordionItem>
@@ -47,8 +49,8 @@ const EditorSidebar: React.FC = () => {
         <AccordionItem title="Projects">
           <ProjectsForm />
         </AccordionItem>
-        
-        <AccordionItem title="Appearance & Style">
+
+        <AccordionItem title="Layout and style">
           <StyleForm />
         </AccordionItem>
       </Accordion>

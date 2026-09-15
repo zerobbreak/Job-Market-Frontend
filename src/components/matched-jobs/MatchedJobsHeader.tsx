@@ -1,54 +1,44 @@
-import { RefreshCw, Search } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
 
 interface MatchedJobsHeaderProps {
   loading: boolean;
   onSearch: (force?: boolean) => void;
   hasProfile: boolean;
+  count?: number;
 }
 
 export function MatchedJobsHeader({
   loading,
   onSearch,
   hasProfile,
+  count = 0,
 }: MatchedJobsHeaderProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-white">
-          Top Matches
+        <p className="mb-2 text-sm text-neutral-500">Top matches</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
+          {loading
+            ? "Looking for new jobs…"
+            : count > 0
+              ? `${count} ${count === 1 ? "role" : "roles"} worth applying to`
+              : "Roles worth applying to"}
         </h1>
+        <p className="mt-2 max-w-xl text-neutral-600 text-pretty">
+          Pick one and we&apos;ll tailor your CV and cover letter to it before
+          you apply.
+        </p>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-          <Input
-            type="text"
-            placeholder="Search matches..."
-            className="pl-9 bg-[#12121a] border-white/5 text-sm h-10 w-full rounded-xl focus-visible:ring-1 focus-visible:ring-white/20"
-          />
-        </div>
-        <Button
-          onClick={() => onSearch(true)} // Pass true to force refresh
-          disabled={loading || !hasProfile}
-          variant="outline"
-          className="h-10 bg-[#12121a] border-white/5 hover:bg-white/5 text-white transition-all rounded-xl"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin text-zinc-400" />
-              Searching...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 text-zinc-400" />
-              Refresh
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
+      <Button
+        variant="outline"
+        onClick={() => onSearch(true)} // Pass true to force refresh
+        disabled={loading || !hasProfile}
+        className="self-start sm:self-auto"
+      >
+        {loading ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+        {loading ? "Searching…" : "Search again"}
+      </Button>
+    </header>
   );
 }

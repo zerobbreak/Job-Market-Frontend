@@ -1,319 +1,181 @@
-import { useNavigate } from "@tanstack/react-router";
-import { FileText, Upload, AlertTriangle, Sparkles } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import type { ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import { ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import type { ProfileData, CVAnalysisSkillGap } from "@/api/types";
+import { getProfileStrength } from "@/components/profile/ProfileStrength";
 import { cn } from "@/lib/utils";
 
-/** Keywords we treat as "highlighted" in the summary (e.g. from job trends) */
-const HIGHLIGHT_TERMS = [
-  "distributed systems",
-  "cloud infrastructure",
-  "microservices",
-  "kubernetes",
-  "k8s",
-  "terraform",
-  "rust",
-  "event-driven",
-  "auto-scaling",
-  "ci/cd",
-];
+type AiAnalysis = {
+  match_readiness_score?: number;
+  match_readiness_message?: string;
+  skill_gaps?: CVAnalysisSkillGap[];
+};
 
-function highlightSummary(text: string) {
-  if (!text) return null;
-  const lower = text.toLowerCase();
-  const segs: { s: string; hi: boolean }[] = [];
-  let pos = 0;
-  while (pos < text.length) {
-    let found = -1;
-    let len = 0;
-    for (const t of HIGHLIGHT_TERMS) {
-      const i = lower.indexOf(t, pos);
-      if (i !== -1 && (found === -1 || i < found)) {
-        found = i;
-        len = t.length;
-      }
-    }
-    if (found === -1) {
-      segs.push({ s: text.slice(pos), hi: false });
-      break;
-    }
-    if (found > pos) segs.push({ s: text.slice(pos, found), hi: false });
-    segs.push({ s: text.slice(found, found + len), hi: true });
-    pos = found + len;
-  }
-  if (segs.length === 0) return <>{text}</>;
+const cardClass =
+  "rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+
+const IMPACT_STYLES: Record<string, string> = {
+  High: "bg-neutral-900 text-white",
+  Medium: "bg-amber-50 text-amber-700",
+  Low: "bg-neutral-100 text-neutral-600",
+};
+
+function Row({ label, children }: { label: string; children?: ReactNode }) {
   return (
-    <>
-      {segs.map((p, i) =>
-        p.hi ? (
-          <span key={i} className="text-primary font-medium">
-            {p.s}
-          </span>
-        ) : (
-          <span key={i}>{p.s}</span>
-        ),
-      )}
-    </>
+    <div className="grid gap-1 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="text-neutral-500">{label}</dt>
+      <dd className={children ? "text-neutral-900" : "text-neutral-400"}>
+        {children || "Not found"}
+      </dd>
+    </div>
   );
-}
-
-function impactToClass(impact: string): string {
-  switch (impact) {
-    case "High":
-      return "bg-accent/20 text-accent border-accent/40";
-    case "Medium":
-      return "bg-amber-500/20 text-amber-400 border-amber-500/40";
-    case "Low":
-      return "bg-zinc-500/20 text-zinc-400 border-zinc-500/40";
-    default:
-      return "bg-accent/20 text-accent border-accent/40";
-  }
-}
-
-function impactLabel(impact: string): string {
-  if (impact === "High") return "High Impact";
-  if (impact === "Medium") return "Medium Impact";
-  if (impact === "Low") return "Low Impact";
-  return impact;
 }
 
 interface CVAnalysisViewProps {
   profile: ProfileData | null;
 }
 
-export function CVAnalysisView({ profile: _profile }: CVAnalysisViewProps) {
-  const navigate = useNavigate();
-
-  if (!_profile) {
+export function CVAnalysisView({ profile }: CVAnalysisViewProps) {
+  if (!profile) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] p-6 text-center animate-fade-in">
-        <FileText className="h-14 w-14 text-zinc-500 mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">No CV on file</h3>
-        <p className="text-zinc-400 mb-6 max-w-md">
-          Upload a CV to see your parsed details, match readiness score, and
-          AI-generated skill gaps.
+      <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-16 text-center">
+        <p className="font-medium text-neutral-900">No CV on file</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500 text-pretty">
+          Upload a CV to see what we read from it and where it could be stronger.
         </p>
-        <Button
-          className="bg-primary hover:bg-primary/90"
-          onClick={() => navigate({ to: "/profile" })}
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          Upload CV
+        <Button asChild className="mt-6">
+          <Link to="/profile">Upload a CV</Link>
         </Button>
       </div>
     );
   }
 
-  const doc = {
-    candidate_name: _profile.name,
-    professional_summary: (_profile as any).summary || _profile.career_goals,
-    core_skills: _profile.skills || [],
-    role_type: (_profile as any).title || _profile.experience_level,
-    experience: _profile.experience_level,
-    skill_density_alignment: 85,
+  const extra = profile as ProfileData & {
+    summary?: string;
+    title?: string;
+    ai_analysis?: unknown;
   };
 
-  let ai = null;
+  let ai: AiAnalysis | null = null;
   try {
-    if ((_profile as any).ai_analysis) {
+    if (extra.ai_analysis) {
       ai =
-        typeof (_profile as any).ai_analysis === "string"
-          ? JSON.parse((_profile as any).ai_analysis)
-          : (_profile as any).ai_analysis;
+        typeof extra.ai_analysis === "string"
+          ? JSON.parse(extra.ai_analysis)
+          : (extra.ai_analysis as AiAnalysis);
     }
   } catch (e) {
     console.error("Failed to parse ai_analysis from profile", e);
   }
 
-  const score = ai?.match_readiness_score ?? doc.skill_density_alignment;
-  const summary = doc.professional_summary || "";
-  const skills = doc.core_skills ?? [];
-  const roleType = doc.role_type || "";
+  const score = ai?.match_readiness_score ?? getProfileStrength(profile).score;
+  const summary = extra.summary || profile.career_goals || "";
+  const role = extra.title || profile.experience_level || "";
+  const skills = profile.skills ?? [];
+  const gaps = ai?.skill_gaps ?? [];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="grid lg:grid-cols-5 gap-6">
-        {/* Uploaded Document */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <FileText className="h-5 w-5 text-accent" />
-              Uploaded Document
-            </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-white/20 text-zinc-300 hover:bg-white/10 hover:text-white"
-              onClick={() => navigate({ to: "/profile" })}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Update CV
-            </Button>
+    <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <section className={cn(cardClass, "p-6")}>
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-medium text-neutral-900">What we read from your CV</h2>
+            <p className="mt-0.5 text-sm text-neutral-500">
+              Something wrong? Fix it on your profile.
+            </p>
           </div>
-          <Card className="glass-card border-transparent overflow-hidden">
-            <CardContent className="p-6 space-y-5">
-              <div>
-                <h3 className="text-xl font-bold text-white uppercase tracking-wide">
-                  {doc.candidate_name || "—"}
-                </h3>
-                <p className="text-sm text-zinc-400 mt-1">{roleType || "—"}</p>
-              </div>
-              {summary && (
-                <div>
-                  <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                    Professional Summary
-                  </p>
-                  <p className="text-sm text-zinc-300 leading-relaxed">
-                    {highlightSummary(summary.slice(0, 400))}
-                    {summary.length > 400 ? "…" : ""}
-                  </p>
-                </div>
-              )}
-              {skills.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                    Core Skills
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {skills.slice(0, 12).map((s: any, i: number) => (
-                      <span
-                        key={i}
-                        className={cn(
-                          "px-2.5 py-1 rounded-md text-xs font-medium",
-                          HIGHLIGHT_TERMS.some((t) =>
-                            String(s).toLowerCase().includes(t),
-                          )
-                            ? "bg-primary/20 text-primary"
-                            : "bg-white/5 text-zinc-400",
-                        )}
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                  Experience
-                </p>
-                <p className="text-sm text-zinc-400">{doc.experience || "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">
-                  Skill Density Alignment
-                </p>
-                <Progress
-                  value={doc.skill_density_alignment ?? 0}
-                  className="h-2 bg-white/10 [&>div]:bg-accent"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/profile">
+              Edit
+              <ArrowUpRight />
+            </Link>
+          </Button>
         </div>
 
-        {/* AI Analysis */}
-        <div className="lg:col-span-3 space-y-4">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-accent" />
-            AI Analysis
-          </h2>
-          <Card className="glass-card border-transparent">
-            <CardContent className="p-6">
-              {ai ? (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                  <div className="flex items-center justify-center shrink-0">
-                    <div
+        <dl className="space-y-4 text-sm">
+          <Row label="Name">{profile.name}</Row>
+          <Row label="Role">{role}</Row>
+          <Row label="Location">{profile.location}</Row>
+          <Row label="Summary">
+            {summary ? (
+              <span className="whitespace-pre-line leading-relaxed">
+                {summary.length > 400 ? `${summary.slice(0, 400)}…` : summary}
+              </span>
+            ) : undefined}
+          </Row>
+          <div className="grid gap-2 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-4">
+            <dt className="text-neutral-500">Skills</dt>
+            <dd className="flex flex-wrap gap-1.5">
+              {skills.length > 0 ? (
+                skills.slice(0, 16).map((skill, i) => (
+                  <span
+                    key={`${skill}-${i}`}
+                    className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-700"
+                  >
+                    {skill}
+                  </span>
+                ))
+              ) : (
+                <span className="text-neutral-400">None found</span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <div className="space-y-6">
+        <section className={cn(cardClass, "p-6")}>
+          <p className="text-sm text-neutral-500">Match readiness</p>
+          <p
+            className={cn(
+              "mt-2 text-5xl font-semibold tracking-tight tabular-nums",
+              score >= 80 ? "text-emerald-700" : "text-neutral-900",
+            )}
+          >
+            {score}%
+          </p>
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-neutral-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-[width] duration-700"
+              style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
+            />
+          </div>
+          <p className="mt-4 text-sm leading-relaxed text-neutral-600 text-pretty">
+            {ai?.match_readiness_message ||
+              "A detailed analysis isn't available for this CV yet, so this score shows how complete your profile is."}
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-3 font-medium text-neutral-900">Skill gaps</h2>
+          {gaps.length > 0 ? (
+            <ul className="space-y-3">
+              {gaps.map((gap, i) => (
+                <li key={i} className={cn(cardClass, "p-4")}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium text-neutral-900">{gap.title}</p>
+                    <span
                       className={cn(
-                        "w-28 h-28 rounded-full flex flex-col items-center justify-center border-2",
-                        score >= 80
-                          ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-400"
-                          : "bg-accent/10 border-accent/40 text-accent",
+                        "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                        IMPACT_STYLES[gap.impact] ?? IMPACT_STYLES.Low,
                       )}
                     >
-                      <span className="text-3xl font-bold leading-none">
-                        {score}%
-                      </span>
-                    </div>
+                      {gap.impact} impact
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                      Match Readiness
-                    </p>
-                    <p className="text-sm text-zinc-300">
-                      {ai.match_readiness_message}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                  <div className="flex items-center justify-center shrink-0">
-                    <div className="w-28 h-28 rounded-full flex flex-col items-center justify-center border-2 bg-accent/10 border-accent/40 text-accent">
-                      <span className="text-3xl font-bold leading-none">
-                        {score}%
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
-                      Match Readiness
-                    </p>
-                    <p className="text-sm text-zinc-300">
-                      AI analysis is temporarily unavailable. Score is based on
-                      profile completeness.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div>
-            <h3 className="text-base font-semibold text-white flex items-center gap-2 mb-4">
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
-              Critical Skill Gaps
-            </h3>
-            {ai?.skill_gaps && ai.skill_gaps.length > 0 ? (
-              <div className="space-y-3">
-                {ai.skill_gaps.map((gap: CVAnalysisSkillGap, i: number) => (
-                  <Card
-                    key={i}
-                    className="glass-card border-transparent hover:border-accent/30 transition-colors"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span
-                          className={cn(
-                            "px-2 py-0.5 rounded-md text-xs font-semibold border",
-                            impactToClass(gap.impact),
-                          )}
-                        >
-                          {impactLabel(gap.impact)}
-                        </span>
-                      </div>
-                      <p className="font-medium text-white text-sm mb-1">
-                        {gap.title}
-                      </p>
-                      <p className="text-sm text-zinc-400">{gap.description}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card className="glass-card border-transparent">
-                <CardContent className="p-6 text-center">
-                  <p className="text-sm text-zinc-400">
-                    {ai
-                      ? "No critical skill gaps identified. Your profile aligns well with your target roles."
-                      : "Upload a CV and run AI analysis to see personalized skill gap suggestions."}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
+                  <p className="mt-1 text-sm text-neutral-600">{gap.description}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className={cn(cardClass, "p-5 text-sm text-neutral-600")}>
+              {ai
+                ? "No big gaps for the roles you're targeting."
+                : "Skill gaps show up here once your CV has been fully analysed."}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

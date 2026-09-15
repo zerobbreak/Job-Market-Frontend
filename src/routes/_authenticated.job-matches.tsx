@@ -69,11 +69,12 @@ function MatchedJobs() {
   const error = matchingError || applicationError;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <MatchedJobsHeader
         loading={loading}
         onSearch={findMatches}
         hasProfile={!!profile}
+        count={filteredMatchedJobs.length}
       />
 
       <SearchInProgressBanner loading={loading} />
@@ -89,7 +90,7 @@ function MatchedJobs() {
 
       {/* Results Area */}
       <ErrorBoundary>
-        <div className="min-h-[400px]">
+        <div className="min-h-[400px] pt-2">
           {!loading && !cacheLoading && matchedJobs.length === 0 && (
             <EmptyState message={message} onSearch={() => findMatches(true)} />
           )}

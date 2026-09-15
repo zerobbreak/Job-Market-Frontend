@@ -33,12 +33,12 @@ export function CVUploader({
     ];
 
     if (file.size > MAX_SIZE) {
-      setError("File is too large. Max 10MB.");
+      setError("That file is over 10MB. Try a smaller one.");
       return;
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError("Invalid file type. Please upload a PDF, DOC, or DOCX.");
+      setError("Please upload a PDF or Word document.");
       return;
     }
 
@@ -69,12 +69,12 @@ export function CVUploader({
   return (
     <div
       className={cn(
-        "relative rounded-xl border-2 border-dashed transition-all duration-200 ease-in-out p-8 text-center",
+        "relative rounded-xl border border-dashed px-6 py-10 text-center transition-colors",
         dragActive
-          ? "border-primary bg-primary/5 ring-4 ring-primary/10"
-          : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30",
-        isUploading && "opacity-60 pointer-events-none",
-        className
+          ? "border-neutral-900 bg-neutral-50"
+          : "border-neutral-300 hover:border-neutral-400 hover:bg-neutral-50/60",
+        isUploading && "pointer-events-none",
+        className,
       )}
       onDragEnter={handleDrag}
       onDragLeave={handleDrag}
@@ -90,49 +90,39 @@ export function CVUploader({
         disabled={isUploading}
       />
 
-      <div className="flex flex-col items-center gap-4">
-        <div
-          className={cn(
-            "p-4 rounded-full transition-colors",
-            dragActive
-              ? "bg-primary/20 text-primary"
-              : "bg-muted text-muted-foreground"
-          )}
-        >
+      <div className="flex flex-col items-center" aria-live="polite">
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
           {isUploading ? (
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            <Upload className="h-8 w-8" />
+            <Upload className="h-5 w-5" strokeWidth={1.75} />
           )}
         </div>
 
-        <div className="space-y-1">
-          <h3 className="font-semibold text-lg tracking-tight">
-            {isUploading ? "Uploading..." : "Upload your CV"}
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            Drag and drop your resume here, or click to browse.
-            <br />
-            <span className="text-xs opacity-75">PDF, DOCX up to 10MB</span>
-          </p>
-        </div>
+        <p className="font-medium text-neutral-900">
+          {isUploading ? "Reading your CV…" : "Drop your CV here"}
+        </p>
+        <p className="mt-1 text-sm text-neutral-500">
+          {isUploading
+            ? "Pulling out your skills and experience."
+            : "PDF, DOC, or DOCX, up to 10MB"}
+        </p>
 
         {error && (
-          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 px-3 py-2 rounded-md">
-            <AlertCircle className="h-4 w-4" />
+          <p
+            role="alert"
+            className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
             {error}
-          </div>
+          </p>
         )}
 
-        <Button
-          onClick={() => inputRef.current?.click()}
-          variant="default"
-          size="lg"
-          disabled={isUploading}
-          className="mt-2"
-        >
-          {isUploading ? "Processing..." : "Select File"}
-        </Button>
+        {!isUploading && (
+          <Button onClick={() => inputRef.current?.click()} className="mt-5">
+            Choose a file
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -20,6 +20,14 @@ interface CVListProps {
   onDelete: (fileId: string) => Promise<void>;
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "";
+  return `${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 export function CVList({ files, isLoading, bucketId, onDelete }: CVListProps) {
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -52,7 +60,7 @@ export function CVList({ files, isLoading, bucketId, onDelete }: CVListProps) {
     } catch (error) {
       console.error("Failed to open CV:", error);
       toast.show({
-        title: "Could not open file",
+        title: "Couldn't open that file",
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "error",
       });
@@ -63,90 +71,89 @@ export function CVList({ files, isLoading, bucketId, onDelete }: CVListProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p>Loading your documents...</p>
+      <div className="flex items-center gap-2 py-6 text-sm text-neutral-500" role="status">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading your CVs
       </div>
     );
   }
 
   if (files.length === 0) {
-    return null; // Should be handled by parent to show upload state usually, or empty text
+    return null; // Parent shows the upload state
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
+    <div className="space-y-3">
+      <ul className="space-y-2">
         {displayedFiles.map((file) => (
-          <div
+          <li
             key={file.$id}
-            className="group flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl hover:bg-card hover:border-border/80 hover:shadow-sm transition-all duration-200"
+            className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-3 transition-colors hover:border-neutral-300"
           >
-            <div className="flex items-center gap-4 overflow-hidden">
-              <div className="p-3 bg-primary/10 rounded-lg shrink-0 group-hover:bg-primary/20 transition-colors">
-                <FileText className="h-5 w-5 text-primary" />
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
+                <FileText className="h-4 w-4 text-neutral-600" strokeWidth={1.75} />
               </div>
-              <div className="flex flex-col min-w-0">
+              <div className="min-w-0">
                 <button
                   type="button"
                   onClick={() => handleView(file)}
                   disabled={openingId === file.$id}
-                  className="truncate text-left font-medium text-foreground hover:text-primary hover:underline transition-colors block max-w-[200px] sm:max-w-md disabled:opacity-50"
+                  className="block max-w-full truncate text-left text-sm font-medium text-neutral-900 underline-offset-4 hover:underline disabled:opacity-50"
                 >
                   {file.name}
                 </button>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  Uploaded on {new Date(file.$createdAt).toLocaleDateString()}
-                  {file.sizeOriginal ? (
-                    <>
-                      <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                      {(file.sizeOriginal / 1024 / 1024).toFixed(2)} MB
-                    </>
-                  ) : null}
-                </span>
+                <p className="text-xs text-neutral-500">
+                  Uploaded {formatDate(file.$createdAt)}
+                  {file.sizeOriginal
+                    ? ` · ${(file.sizeOriginal / 1024 / 1024).toFixed(2)} MB`
+                    : ""}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                className="h-8 w-8"
                 onClick={() => handleView(file)}
                 disabled={openingId === file.$id}
-                title="View CV"
+                aria-label={`View ${file.name}`}
+                title="View"
               >
                 {openingId === file.$id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="animate-spin" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <Eye />
                 )}
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
                 onClick={() => handleDelete(file.$id)}
                 disabled={!!deletingId}
-                title="Delete CV"
+                aria-label={`Delete ${file.name}`}
+                title="Delete"
               >
                 {deletingId === file.$id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="animate-spin" />
                 ) : (
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 />
                 )}
               </Button>
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-border/50">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex items-center justify-between pt-1">
+          <p className="text-xs text-neutral-500">
             Page {page} of {totalPages}
-          </div>
-          <div className="flex items-center gap-2">
+          </p>
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"

@@ -123,7 +123,7 @@ function CVEditor() {
 
       setHasPopulated(true);
       toast({
-        title: "CV Data Populated",
+        title: "We filled in your CV",
         description: "We've filled in your personal details from your profile.",
       });
     }

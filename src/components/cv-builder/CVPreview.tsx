@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { useReactToPrint } from 'react-to-print';
+import { useReactToPrint } from '@/lib/react-to-print';
 import { useCVStore } from '../../stores/cvStore';
 import ModernTemplate from './templates/ModernTemplate';
 import { Button } from '../ui/button';
@@ -61,9 +61,9 @@ const CVPreview: React.FC = () => {
         </Button>
       </div>
       
-      <div className="flex-1 overflow-auto flex justify-center bg-gray-100 p-4 border rounded">
+      <div className="flex-1 overflow-auto flex justify-center rounded-xl">
          <div className="w-full max-w-[210mm] min-h-[297mm] origin-top scale-[0.6] sm:scale-[0.8] lg:scale-100 transition-transform duration-200">
-            <div ref={componentRef} className="shadow-xl bg-white print:shadow-none min-h-[297mm]">
+            <div ref={componentRef} className="bg-white border border-neutral-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] print:border-0 print:shadow-none min-h-[297mm]">
               {renderTemplate()}
             </div>
          </div>

@@ -9,22 +9,17 @@ export function SearchInProgressBanner({ loading }: SearchInProgressBannerProps)
 
   return (
     <div
-      className="bg-blue-500/10 border border-blue-500/20 text-blue-200 px-4 py-3 rounded-xl flex items-center gap-4 animate-fade-in"
+      className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)] animate-in fade-in duration-300"
       role="status"
       aria-live="polite"
-      aria-label="Search in progress"
     >
-      <div className="p-2 bg-blue-500/20 rounded-full shrink-0">
-        <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
-      </div>
-      <div className="min-w-0">
-        <p className="font-semibold text-blue-100">
-          Searching for jobs...
-        </p>
-        <p className="text-sm text-blue-200/90">
-          Matching your profile. This may take a moment.
-        </p>
-      </div>
+      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-400" />
+      <p>
+        <span className="font-medium text-neutral-900">
+          Searching LinkedIn, Indeed, and more.
+        </span>{" "}
+        <span className="text-neutral-500">This may take a moment.</span>
+      </p>
     </div>
   );
 }

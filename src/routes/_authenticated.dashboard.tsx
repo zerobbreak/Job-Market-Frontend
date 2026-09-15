@@ -1,23 +1,22 @@
 import { useState, useEffect, useMemo } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import {
-  Briefcase,
+  ArrowUpRight,
+  Check,
   FileText,
-  ChevronDown,
-  TrendingUp,
-  Zap,
-  Shield,
-  User,
+  PencilLine,
   RefreshCw,
+  Repeat,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { FitBadge } from "@/components/ui/fit-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { profileQueryOptions } from "@/api/queries/options";
 import { cvService } from "@/api/services";
-import type { ProfileData } from "@/api/types";
 import { useJobMatching } from "@/hooks/useJobMatching";
 import { useMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
 import {
@@ -27,6 +26,7 @@ import {
 import { CVAnalysisView } from "@/components/dashboard/CVAnalysisView";
 import { CVEditorView } from "@/components/dashboard/CVEditorView";
 import { CVUploader } from "@/components/profile/CVUploader";
+import { getProfileStrength } from "@/components/profile/ProfileStrength";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import { clearMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
@@ -34,7 +34,21 @@ import { track } from "@/utils/analytics";
 
 export type DashboardTab = "job-feed" | "cv-analysis" | "cv-editor";
 
-type FeedFilter = "all" | "specialized" | "remote";
+const FEED_FILTERS = [
+  ["all", "All"],
+  ["strong", "Strong fits"],
+  ["remote", "Remote"],
+] as const;
+
+type FeedFilter = (typeof FEED_FILTERS)[number][0];
+
+const STRONG_FIT = 85;
+
+const SETUP_NOTES = [
+  { icon: FileText, text: "Works with PDF and Word files" },
+  { icon: PencilLine, text: "Fix anything we read wrong" },
+  { icon: Repeat, text: "Replace it whenever you like" },
+];
 
 const dashboardSearchSchema = z.object({
   tab: z.enum(["job-feed", "cv-analysis", "cv-editor"]).optional(),
@@ -49,25 +63,32 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-function profileStrengthScore(profile: ProfileData | null): number {
-  if (!profile) return 0;
-  let s = 0;
-  if (profile.name) s += 10;
-  if (profile.email) s += 10;
-  if (profile.skills?.length) s += 20;
-  if (profile.experience_level) s += 10;
-  if (profile.education) s += 10;
-  if (profile.location) s += 10;
-  if (profile.career_goals) s += 10;
-  if (profile.strengths?.length) s += 10;
-  if (profile.phone) s += 10;
-  return s;
+const panelShadow =
+  "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]";
+
+function Stat({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <p className="text-sm text-neutral-500">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">
+        {value}
+      </p>
+      {children && <div className="mt-2 text-xs text-neutral-500">{children}</div>}
+    </div>
+  );
 }
 
 function Dashboard() {
   const { data: profile } = useSuspenseQuery(profileQueryOptions());
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const { tab: tabParam } = Route.useSearch();
@@ -89,22 +110,21 @@ function Dashboard() {
           "cv_upload",
         );
         toast.show({
-          title: "CV analyzed",
-          description:
-            "Your profile has been generated. Welcome to Cockpit AI!",
+          title: "Your profile is ready",
+          description: "We read your CV and started looking for jobs that fit it.",
           variant: "success",
         });
       } else {
         toast.show({
-          title: "Upload failed",
-          description: data.error || "Failed to analyze CV. Please try again.",
+          title: "We couldn't read that CV",
+          description: data.error || "Please try again, or upload a different file.",
           variant: "error",
         });
       }
     } catch (err: any) {
       toast.show({
-        title: "Upload error",
-        description: err.message || "Error uploading CV. Please try again.",
+        title: "Upload failed",
+        description: err.message || "Please check your connection and try again.",
         variant: "error",
       });
     } finally {
@@ -139,165 +159,130 @@ function Dashboard() {
   };
 
   const feedLoading = loading || cacheLoading;
-  const agentProgress = feedLoading ? 85 : 100;
 
   // Note: Cached matches are automatically loaded on mount by useJobMatching hook
   // No need to call findMatches() here - it would trigger unnecessary API calls
 
+  const allMatches = filteredMatchedJobs as JobFeedCardMatch[];
+  const strongCount = allMatches.filter((m) => m.match_score >= STRONG_FIT).length;
+
   const feedJobs = useMemo(() => {
-    let list = filteredMatchedJobs as JobFeedCardMatch[];
-    if (feedFilter === "specialized")
-      list = list.filter((m) => m.match_score >= 85);
+    let list = allMatches;
+    if (feedFilter === "strong")
+      list = list.filter((m) => m.match_score >= STRONG_FIT);
     if (feedFilter === "remote")
       list = list.filter((m) =>
         m.job.location?.toLowerCase().includes("remote"),
       );
-    return list.slice(0, 6);
-  }, [filteredMatchedJobs, feedFilter]);
+    return list.slice(0, 8);
+  }, [allMatches, feedFilter]);
 
-  const strength = profileStrengthScore(profile);
-  const hotSkills = profile?.skills?.slice(0, 2) ?? ["LLM Ops", "Terraform"];
+  // Keep a job selected so the detail pane is never empty
+  useEffect(() => {
+    if (feedJobs.length === 0) {
+      setSelectedJob(null);
+    } else if (!selectedJob || !feedJobs.some((m) => m.job.id === selectedJob.job.id)) {
+      setSelectedJob(feedJobs[0]);
+    }
+  }, [feedJobs]);
+
+  const strength = profile ? getProfileStrength(profile).score : 0;
+  const firstName = profile?.name?.trim().split(/\s+/)[0];
 
   if (!profile) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] p-4 text-center animate-fade-in relative">
-        <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
-          <Briefcase className="h-96 w-96" />
-        </div>
-        <div className="w-full max-w-2xl space-y-8 relative z-10 glass-panel p-10 md:p-14 rounded-3xl">
-          <div className="space-y-4">
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight bg-linear-to-br from-white to-zinc-400 bg-clip-text text-transparent">
-              Your AI job agent awaits a mission
-            </h2>
-            <p className="text-zinc-400 text-lg max-w-lg mx-auto">
-              Upload your CV to activate Cockpit AI. We'll parse your skills,
-              analyze the market, and build your personalized job feed.
-            </p>
+      <div className="mx-auto max-w-2xl py-4 md:py-12">
+        <p className="mb-4 text-sm text-neutral-500 animate-in fade-in duration-700">
+          Let&apos;s get you set up
+        </p>
+        <h1 className="mb-4 text-4xl font-semibold leading-[1.08] tracking-tight text-balance md:text-5xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+          Start with your CV.{" "}
+          <span className="text-neutral-400">We&apos;ll find the jobs that fit it.</span>
+        </h1>
+        <p className="mb-10 max-w-xl text-lg leading-relaxed text-neutral-600 text-pretty animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 fill-mode-both">
+          Upload it once. We read your skills and experience, then search
+          LinkedIn, Indeed, and more for roles worth applying to.
+        </p>
+
+        <div className="rounded-2xl border border-neutral-200 bg-[#FAFAF9] p-2 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200 fill-mode-both sm:p-3">
+          <div className="rounded-xl border border-neutral-200 bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-3">
+            <CVUploader onUpload={handleCVUpload} isUploading={uploading} />
           </div>
-          <CVUploader onUpload={handleCVUpload} isUploading={uploading} />
         </div>
+
+        <ul className="mt-6 grid gap-3 text-sm text-neutral-600 sm:grid-cols-3">
+          {SETUP_NOTES.map(({ icon: Icon, text }) => (
+            <li key={text} className="flex items-center gap-2">
+              <Icon className="h-4 w-4 shrink-0 text-neutral-400" strokeWidth={1.75} />
+              {text}
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
 
-  const isCVTab = mainTab === "cv-analysis" || mainTab === "cv-editor";
-
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
-      {/* Headline + Status */}
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-        <div className="flex-1">
-          <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
-            Your personalized job feed is updated with{" "}
-            <span className="text-[#3b82f6]">{matchedJobs.length}</span> new
-            opportunities. Let&apos;s explore them.
+    <div className="space-y-8 pb-10">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="mb-2 text-sm text-neutral-500">
+            {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
+            {feedLoading ? (
+              "Looking for new jobs…"
+            ) : matchedJobs.length === 0 ? (
+              "No matches yet"
+            ) : (
+              <>
+                {matchedJobs.length}{" "}
+                {matchedJobs.length === 1 ? "job fits" : "jobs fit"} your CV{" "}
+                <span className="text-neutral-400">right now</span>
+              </>
+            )}
           </h1>
         </div>
-        <div className="shrink-0">
-          {isCVTab ? (
-            <div className="w-full min-w-[260px] glass-card rounded-2xl p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 rounded-xl bg-white/5">
-                  <FileText className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    CV Parsing Active
-                  </p>
-                  <p className="text-sm font-semibold text-white">
-                    Analysis depth
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-1.5 mt-4">
-                <div className="flex justify-between text-xs text-muted-foreground font-medium">
-                  <span>Complete</span>
-                  <span>100%</span>
-                </div>
-                <Progress
-                  value={100}
-                  className="h-1.5 bg-white/10 [&>div]:bg-accent"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="w-full min-w-[280px] glass-card rounded-2xl p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="relative">
-                  <div className="p-2.5 rounded-xl bg-white/5">
-                    <Briefcase className="h-5 w-5 text-primary" />
-                  </div>
-                  <span className="absolute -bottom-1 -right-1 text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded shadow-sm">
-                    {agentProgress}%
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Agent Status
-                  </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    <span className="text-sm font-semibold text-white">
-                      ACTIVE
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-muted-foreground font-medium">
-                  <span>
-                    {loading ? "Scanning live jobs..." : "Live jobs scanned."}
-                  </span>
-                  <span>{agentProgress}%</span>
-                </div>
-                <Progress
-                  value={agentProgress}
-                  className="h-1.5 bg-white/10 [&>div]:bg-primary"
-                />
-              </div>
-              <div className="flex -space-x-2 mt-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "bg-linear-to-br from-accent/20 to-accent/5 flex items-center justify-center shrink-0",
-                      "h-8 w-8 rounded-full border-2 border-card text-xs font-medium bg-secondary text-secondary-foreground shadow-sm",
-                      i <= 3 && "ring-2 ring-primary/40",
-                    )}
-                  >
-                    <User className="h-3.5 w-3.5" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+        <Button
+          variant="outline"
+          onClick={() => findMatches(true)}
+          disabled={feedLoading}
+          className="self-start sm:self-auto"
+        >
+          <RefreshCw className={cn(loading && "animate-spin")} />
+          {loading ? "Searching…" : "Search again"}
+        </Button>
+      </header>
 
-      {/* Main tabs: Job Feed | CV Analysis | CV Editor */}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <Stat label="Matches found" value={matchedJobs.length}>
+          From LinkedIn, Indeed, and more
+        </Stat>
+        <Stat label="Strong fits" value={strongCount}>
+          {STRONG_FIT}% fit or higher
+        </Stat>
+        <Stat label="Profile strength" value={`${strength}%`}>
+          <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-neutral-100">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-[width] duration-700"
+              style={{ width: `${strength}%` }}
+            />
+          </div>
+          {strength < 100 ? (
+            <Link to="/profile" className="text-neutral-900 underline-offset-4 hover:underline">
+              Complete your profile for better matches
+            </Link>
+          ) : (
+            "Your profile is complete"
+          )}
+        </Stat>
+      </section>
+
       <Tabs value={mainTab} onValueChange={(v) => setTab(v as DashboardTab)}>
-        <TabsList className="bg-card/50 border border-border p-1 h-12 w-full max-w-md rounded-xl backdrop-blur-sm">
-          <TabsTrigger
-            value="job-feed"
-            className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4 font-medium transition-all"
-          >
-            Job Feed
-          </TabsTrigger>
-          <TabsTrigger
-            value="cv-analysis"
-            className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4 text-muted-foreground font-medium transition-all"
-          >
-            CV Analysis
-          </TabsTrigger>
-          <TabsTrigger
-            value="cv-editor"
-            className="flex-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg px-4 text-muted-foreground font-medium transition-all"
-          >
-            CV Editor
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="job-feed">Job feed</TabsTrigger>
+          <TabsTrigger value="cv-analysis">CV analysis</TabsTrigger>
+          <TabsTrigger value="cv-editor">Your CV</TabsTrigger>
         </TabsList>
 
         <TabsContent value="cv-analysis" className="mt-6">
@@ -308,307 +293,174 @@ function Dashboard() {
           <CVEditorView profile={profile} />
         </TabsContent>
 
-        <TabsContent value="job-feed" className="mt-6 space-y-8">
-          {/* Top AI Recommendations */}
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <h2 className="text-xl font-bold text-white">
-                Top AI Recommendations
-              </h2>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex rounded-xl overflow-hidden border border-white/10 bg-[#1e1e36] p-0.5">
-                  {(
-                    [
-                      ["all", "All Matches"],
-                      ["specialized", "Highly Specialized"],
-                      ["remote", "Remote Only"],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <button
-                      key={key}
-                      onClick={() => setFeedFilter(key)}
-                      className={cn(
-                        "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                        feedFilter === key
-                          ? "bg-[#3b82f6] text-white"
-                          : "text-zinc-400 hover:text-white hover:bg-white/5",
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-3 text-sm text-zinc-400">
-                  <button
-                    type="button"
-                    onClick={() => findMatches(true)}
-                    disabled={feedLoading}
-                    className="flex items-center gap-1 hover:text-white transition-colors disabled:opacity-50"
-                    title="Refresh feed (force refresh)"
-                  >
-                    <RefreshCw
-                      className={cn("h-4 w-4", loading && "animate-spin")}
-                    />
-                    {loading ? "Searching..." : "Live Feed"}
-                  </button>
-                  <span className="flex items-center gap-1">
-                    Sort: Best Match
-                    <ChevronDown className="h-4 w-4" />
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Split Pane Job Feed */}
-            {feedLoading ? (
-              <div className="flex flex-col items-center justify-center py-32 animate-fade-in glass-card rounded-3xl mt-6">
-                <div className="relative w-24 h-24 mx-auto mb-6">
-                  <div className="absolute inset-0 border-4 border-primary/10 rounded-full"></div>
-                  <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
-                  <Briefcase className="h-10 w-10 text-primary absolute inset-0 m-auto animate-pulse" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">
-                  Scanning market data...
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Matching your skills against live job listings.
-                </p>
-              </div>
-            ) : feedJobs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center glass-card rounded-3xl mt-6">
-                <div className="h-16 w-16 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
-                  <Briefcase className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-3">
-                  No active recommendations
-                </h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                  We couldn't find any jobs matching your exact filters right
-                  now. Try expanding your search criteria.
-                </p>
-                <Button
-                  onClick={() => navigate({ to: "/job-matches" })}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
-                >
-                  Explore All Matches
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col lg:flex-row gap-6 mt-6 min-h-[600px] max-h-[800px]">
-                {/* Left Hand List Pane */}
-                <div className="w-full lg:w-5/12 xl:w-1/3 flex flex-col gap-4 overflow-y-auto pr-2 pb-8 custom-scrollbar">
-                  {feedJobs.map((match, idx) => (
-                    <div
-                      key={match.job.id}
-                      onClick={() => setSelectedJob(match)}
-                      className={cn(
-                        "cursor-pointer rounded-2xl transition-all duration-200 border-2",
-                        selectedJob?.job.id === match.job.id
-                          ? "border-primary/50 shadow-[0_0_20px_rgba(59,130,246,0.15)] ring-1 ring-primary/20"
-                          : "border-transparent",
-                      )}
-                    >
-                      <JobFeedCard match={match} index={idx} />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Right Hand Detail Pane */}
-                <div className="hidden lg:flex w-full lg:w-7/12 xl:w-2/3 glass-panel rounded-3xl flex-col overflow-hidden relative border-border/50 shadow-2xl">
-                  {selectedJob ? (
-                    <div className="flex flex-col h-full">
-                      <div className="p-8 border-b border-border/50 bg-card/40 backdrop-blur-md">
-                        <div className="flex items-start justify-between gap-6">
-                          <div>
-                            <h2 className="text-3xl font-bold text-white mb-2">
-                              {selectedJob.job.title}
-                            </h2>
-                            <div className="flex items-center gap-3 text-muted-foreground">
-                              <span className="font-medium text-white">
-                                {selectedJob.job.company}
-                              </span>
-                              <span className="text-border">•</span>
-                              <span>{selectedJob.job.location}</span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-2 shrink-0">
-                            <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg font-bold">
-                              {selectedJob.match_score}% Match
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              Based on your profile
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-8 custom-scrollbar">
-                        {/* High-level match breakdown mock */}
-                        <div>
-                          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                            Match Breakdown
-                          </h3>
-                          <div className="space-y-4">
-                            <div>
-                              <div className="flex justify-between text-sm mb-1.5">
-                                <span className="font-medium">
-                                  Skill Alignment
-                                </span>
-                                <span className="text-primary font-bold">
-                                  95%
-                                </span>
-                              </div>
-                              <Progress
-                                value={95}
-                                className="h-2 bg-white/5 [&>div]:bg-primary"
-                              />
-                            </div>
-                            <div>
-                              <div className="flex justify-between text-sm mb-1.5">
-                                <span className="font-medium">
-                                  Experience Level
-                                </span>
-                                <span className="text-emerald-400 font-bold">
-                                  88%
-                                </span>
-                              </div>
-                              <Progress
-                                value={88}
-                                className="h-2 bg-white/5 [&>div]:bg-emerald-400"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        {selectedJob.match_reasons &&
-                          selectedJob.match_reasons.length > 0 && (
-                            <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10">
-                              <h4 className="text-sm font-semibold text-primary mb-3">
-                                Why this is a strong match
-                              </h4>
-                              <ul className="space-y-2">
-                                {selectedJob.match_reasons
-                                  .slice(0, 3)
-                                  .map((r, i) => (
-                                    <li
-                                      key={i}
-                                      className="text-sm text-zinc-300 flex gap-2"
-                                    >
-                                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                                      {r}
-                                    </li>
-                                  ))}
-                              </ul>
-                            </div>
-                          )}
-                        <div>
-                          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-                            Job Description
-                          </h3>
-                          <div className="prose prose-invert prose-sm max-w-none text-zinc-300">
-                            {selectedJob.job.description ||
-                              "No detailed description provided by the employer."}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-6 border-t border-border/50 bg-card/80 backdrop-blur-xl flex items-center justify-end gap-4 shrink-0">
-                        {selectedJob.job.url && (
-                          <Button
-                            variant="outline"
-                            className="h-12 px-6 rounded-xl border-border bg-white/5 hover:bg-white/10"
-                            asChild
-                          >
-                            <a
-                              href={selectedJob.job.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              View Original
-                            </a>
-                          </Button>
-                        )}
-                        <Button
-                          className="h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-base font-medium"
-                          onClick={() => navigate({ to: "/job-matches" })}
-                        >
-                          Apply with Cockpit AI
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                      <Briefcase className="h-16 w-16 text-muted-foreground/30 mb-6" />
-                      <p className="text-xl font-medium text-white mb-2">
-                        Select a role to view details
-                      </p>
-                      <p className="text-muted-foreground">
-                        Click on any job card in the list to examine the match
-                        breakdown and full description.
-                      </p>
-                    </div>
+        <TabsContent value="job-feed" className="mt-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              {FEED_FILTERS.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setFeedFilter(key)}
+                  aria-pressed={feedFilter === key}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm transition-colors",
+                    feedFilter === key
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-neutral-900",
                   )}
-                </div>
-              </div>
-            )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Link
+              to="/job-matches"
+              className="inline-flex items-center gap-1 text-sm text-neutral-500 transition-colors hover:text-neutral-900"
+            >
+              See all matches
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
 
-          {/* Analytics row */}
-          <div className="grid md:grid-cols-3 gap-6 mt-8">
-            <div className="glass-card rounded-3xl p-6 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-linear-to-br from-accent/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 rounded-2xl bg-white/5 text-accent shadow-sm">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Salary Trends
-                </span>
-              </div>
-              <p className="text-3xl font-bold tracking-tight">+12.4%</p>
-            </div>
-
-            <div className="glass-card rounded-3xl p-6 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-linear-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 rounded-2xl bg-white/5 text-primary shadow-sm">
-                  <Zap className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Hot Skills
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {hotSkills.map((s, i) => (
-                  <span
+          {feedLoading ? (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+              <div className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                  <div
                     key={i}
-                    className="px-3 py-1.5 rounded-xl text-sm font-semibold bg-white/5 text-zinc-300 border border-white/5"
+                    className="rounded-2xl border border-neutral-200 bg-white p-5"
                   >
-                    {s}
-                  </span>
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-neutral-100" />
+                    <div className="mt-3 h-3 w-1/3 animate-pulse rounded bg-neutral-100" />
+                    <div className="mt-5 h-3 w-1/2 animate-pulse rounded bg-neutral-100" />
+                  </div>
                 ))}
               </div>
+              <div className="hidden items-center justify-center rounded-2xl border border-neutral-200 bg-white p-10 text-center lg:flex">
+                <div>
+                  <Search className="mx-auto mb-3 h-5 w-5 text-neutral-400" />
+                  <p className="font-medium">Searching LinkedIn, Indeed, and more</p>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Matching live listings against your CV.
+                  </p>
+                </div>
+              </div>
             </div>
+          ) : feedJobs.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-16 text-center">
+              <p className="font-medium">
+                {feedFilter === "all" ? "No matches yet" : "Nothing matches this filter"}
+              </p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500 text-pretty">
+                {feedFilter === "all"
+                  ? "Search again, or try a wider location on the matches page."
+                  : "Try another filter to see the rest of your matches."}
+              </p>
+              <div className="mt-6 flex justify-center gap-2">
+                {feedFilter !== "all" && (
+                  <Button variant="outline" onClick={() => setFeedFilter("all")}>
+                    Show all
+                  </Button>
+                )}
+                <Button asChild>
+                  <Link to="/job-matches">Go to matches</Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
+              <ul className="space-y-3">
+                {feedJobs.map((match, idx) => {
+                  const isSelected = selectedJob?.job.id === match.job.id;
+                  return (
+                    <li key={match.job.id}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        onClick={() => setSelectedJob(match)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedJob(match);
+                          }
+                        }}
+                        className={cn(
+                          "cursor-pointer rounded-2xl outline-none transition-shadow focus-visible:ring-4 focus-visible:ring-neutral-900/10",
+                          isSelected && "ring-2 ring-neutral-900",
+                        )}
+                      >
+                        <JobFeedCard match={match} index={idx} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
 
-            <div className="glass-card rounded-3xl p-6 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-linear-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 rounded-2xl bg-white/5 text-emerald-400 shadow-sm">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                  Profile Strength
-                </span>
-              </div>
-              <div className="space-y-3 mt-1">
-                <div className="flex justify-between text-sm font-medium">
-                  <span className="text-emerald-400">Excellent</span>
-                  <span className="text-white">{strength}%</span>
-                </div>
-                <Progress
-                  value={strength}
-                  className="h-2 bg-white/10 [&>div]:bg-emerald-400 rounded-full"
-                />
-              </div>
+              {selectedJob && (
+                <article
+                  className={cn(
+                    "hidden max-h-[calc(100vh-4rem)] flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white lg:sticky lg:top-8 lg:flex",
+                    panelShadow,
+                  )}
+                >
+                  <header className="flex items-start justify-between gap-6 border-b border-neutral-100 p-6">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-semibold tracking-tight text-balance">
+                        {selectedJob.job.title}
+                      </h2>
+                      <p className="mt-1 text-sm text-neutral-500">
+                        {selectedJob.job.company}
+                        {selectedJob.job.location && ` · ${selectedJob.job.location}`}
+                      </p>
+                    </div>
+                    <FitBadge score={selectedJob.match_score} />
+                  </header>
+
+                  <div className="flex-1 space-y-6 overflow-y-auto p-6">
+                    {selectedJob.match_reasons && selectedJob.match_reasons.length > 0 && (
+                      <section>
+                        <h3 className="mb-3 text-sm font-medium">Why it fits you</h3>
+                        <ul className="space-y-2">
+                          {selectedJob.match_reasons.slice(0, 4).map((reason, i) => (
+                            <li key={i} className="flex gap-2.5 text-sm text-neutral-700">
+                              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                              {reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    )}
+                    <section>
+                      <h3 className="mb-2 text-sm font-medium">About the role</h3>
+                      <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-600">
+                        {selectedJob.job.description ||
+                          "The employer didn't include a description. Open the listing for details."}
+                      </p>
+                    </section>
+                  </div>
+
+                  <footer className="flex items-center justify-end gap-2 border-t border-neutral-100 p-4">
+                    {selectedJob.job.url && (
+                      <Button variant="outline" asChild>
+                        <a
+                          href={selectedJob.job.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View listing
+                          <ArrowUpRight />
+                        </a>
+                      </Button>
+                    )}
+                    <Button asChild>
+                      <Link to="/job-matches">Tailor my CV and apply</Link>
+                    </Button>
+                  </footer>
+                </article>
+              )}
             </div>
-          </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

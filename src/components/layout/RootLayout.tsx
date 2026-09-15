@@ -1,258 +1,191 @@
 import { useState } from "react";
-import type { ReactNode } from "react";
-import { Outlet, Link, useSearch } from "@tanstack/react-router";
+import { Outlet, Link } from "@tanstack/react-router";
 import {
+  Briefcase,
+  ClipboardList,
+  FileText,
   LogOut,
   Menu,
-  Gem,
-  Briefcase,
-  BarChart3,
-  ShieldCheck,
+  Sparkles,
   TrendingUp,
-  Settings,
-  FileEdit,
+  UserRound,
+  X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
-export default function RootLayout() {
-  const { logout } = useAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const search = useSearch({ strict: false }) as { tab?: string };
-  const tab = search.tab;
+const navGroups = [
+  {
+    title: "Your search",
+    items: [
+      { name: "Job feed", href: "/dashboard", icon: Briefcase },
+      { name: "Top matches", href: "/job-matches", icon: Sparkles },
+      { name: "Applications", href: "/applications", icon: ClipboardList },
+    ],
+  },
+  {
+    title: "Your CV",
+    items: [
+      { name: "CV editor", href: "/cv-editor", icon: FileText },
+      { name: "Profile", href: "/profile", icon: UserRound },
+    ],
+  },
+  {
+    title: "Explore",
+    items: [
+      { name: "Market insights", href: "/market-insights", icon: TrendingUp },
+    ],
+  },
+] as const;
 
-  const navGroups = [
-    {
-      title: "Workspace",
-      items: [
-        {
-          name: "Job Feed",
-          href: "/dashboard",
-          icon: Briefcase,
-          dashboardTab: "job-feed" as const,
-        },
-        {
-          name: "Smart CV Editor",
-          href: "/cv-editor",
-          icon: FileEdit,
-        },
-        { name: "Agent Activity", href: "/applications", icon: BarChart3 },
-      ],
-    },
-    {
-      title: "Discover",
-      items: [
-        { name: "Top Matches", href: "/job-matches", icon: ShieldCheck },
-        { name: "Market Insights", href: "/market-insights", icon: TrendingUp },
-      ],
-    },
-    {
-      title: "Account",
-      items: [{ name: "Settings", href: "/profile", icon: Settings }],
-    },
-  ];
-
-  const renderNavItems = (onClick?: () => void) => (
-    <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto w-full">
-      {navGroups.map((group) => (
-        <div key={group.title}>
-          <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            {group.title}
-          </p>
-          <div className="space-y-1">
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              const isDashboard = "dashboardTab" in item;
-
-              const linkContent: ReactNode = (
-                <>
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {item.name}
-                </>
-              );
-
-              const className = cn(
-                "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200",
-                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              );
-
-              if (isDashboard) {
-                const isDashboardActive =
-                  item.dashboardTab === "job-feed" && (!tab || tab === "job-feed");
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={onClick}
-                    className={cn(
-                      className,
-                      isDashboardActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground",
-                    )}
-                  >
-                    {linkContent}
-                  </Link>
-                );
-              }
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={onClick}
-                  className={cn(className, "text-sidebar-foreground")}
-                  activeProps={{
-                    className: "bg-sidebar-accent text-sidebar-accent-foreground",
-                  }}
-                >
-                  {linkContent}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const { user, logout } = useAuth();
+  const initials = (user?.name || user?.email || "?")
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
-    <div className="dark min-h-screen bg-background text-foreground flex">
-      {/* Desktop Sidebar - Cockpit AI style */}
-      <aside className="hidden md:flex w-72 flex-col bg-sidebar border-r border-border shrink-0">
-        <div className="p-6 flex items-center gap-3 h-20">
-          <div className="p-2 rounded-xl bg-primary shadow-lg shadow-primary/20">
-            <Gem className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-xl font-bold leading-tight">Cockpit AI</h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-              </span>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Agent Active
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="flex h-full flex-col">
+      <div className="flex h-16 items-center px-5">
+        <Link
+          to="/dashboard"
+          onClick={onNavigate}
+          className="font-semibold text-lg tracking-tight text-neutral-900"
+        >
+          JobAgent
+        </Link>
+      </div>
 
-        {renderNavItems()}
-
-        <div className="p-6 border-t border-border mt-auto">
-          <div className="rounded-2xl bg-card border border-border p-5 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-linear-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-              Pro Plan
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+        {navGroups.map((group) => (
+          <div key={group.title}>
+            <p className="mb-1.5 px-3 text-xs font-medium text-neutral-400">
+              {group.title}
             </p>
-            <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 font-medium">
-              Upgrade Account
-            </Button>
+            <ul className="space-y-0.5">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      to={item.href}
+                      onClick={onNavigate}
+                      className="flex items-center gap-3 rounded-xl border px-3 py-2 text-sm transition-colors"
+                      activeProps={{
+                        className:
+                          "border-neutral-200 bg-white font-medium text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+                      }}
+                      inactiveProps={{
+                        className:
+                          "border-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900",
+                      }}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                      {item.name}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 mt-4 h-10 px-4"
+        ))}
+      </nav>
+
+      <div className="border-t border-neutral-200/70 p-3">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-medium text-white">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-neutral-900">
+              {user?.name || "Your account"}
+            </p>
+            {user?.email && (
+              <p className="truncate text-xs text-neutral-500">{user.email}</p>
+            )}
+          </div>
+          <button
+            type="button"
             onClick={logout}
+            aria-label="Log out"
+            title="Log out"
+            className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
           >
-            <LogOut className="h-4 w-4 mr-3" />
-            Sign Out
-          </Button>
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export default function RootLayout() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF9] text-neutral-900 selection:bg-neutral-200 md:flex">
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-neutral-200/70 md:block">
+        <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar - Drawer Style */}
+      {/* Mobile header */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-neutral-200/70 bg-white/80 px-4 backdrop-blur-md md:hidden">
+        <Link to="/dashboard" className="font-semibold tracking-tight">
+          JobAgent
+        </Link>
+        <button
+          type="button"
+          onClick={() => setIsMenuOpen(true)}
+          aria-label="Open menu"
+          className="rounded-lg p-2 text-neutral-600 hover:bg-neutral-100"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </header>
+
+      {/* Mobile drawer */}
       <div
         className={cn(
           "fixed inset-0 z-50 md:hidden",
-          isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none",
+          isMenuOpen ? "pointer-events-auto" : "pointer-events-none",
         )}
+        aria-hidden={!isMenuOpen}
       >
-        {/* Backdrop */}
         <div
           className={cn(
-            "fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300",
-            isMobileMenuOpen ? "opacity-100" : "opacity-0",
+            "absolute inset-0 bg-neutral-900/20 backdrop-blur-sm transition-opacity duration-300",
+            isMenuOpen ? "opacity-100" : "opacity-0",
           )}
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={() => setIsMenuOpen(false)}
         />
-
-        {/* Sidebar Panel */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border transform transition-transform duration-300 ease-in-out flex flex-col",
-            isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
+            "absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-neutral-200 bg-[#FAFAF9] shadow-xl transition-transform duration-300 ease-out",
+            isMenuOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
-          <div className="p-6 flex items-center gap-3 h-20 border-b border-border/50">
-            <div className="p-2 rounded-xl bg-primary shadow-lg shadow-primary/20">
-              <Gem className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-bold leading-tight">Cockpit AI</h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Agent Active
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {renderNavItems(() => setIsMobileMenuOpen(false))}
-
-          <div className="p-6 border-t border-border mt-auto">
-            <div className="rounded-2xl bg-card border border-border p-5 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-linear-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                Pro Plan
-              </p>
-              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 font-medium">
-                Upgrade Account
-              </Button>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 mt-4 h-10 px-4"
-              onClick={logout}
-            >
-              <LogOut className="h-4 w-4 mr-3" />
-              Sign Out
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen(false)}
+            aria-label="Close menu"
+            className="absolute right-3 top-3.5 rounded-lg p-2 text-neutral-500 hover:bg-neutral-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <SidebarContent onNavigate={() => setIsMenuOpen(false)} />
         </aside>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-background">
-        <header className="md:hidden h-16 border-b border-border bg-sidebar/95 backdrop-blur-md px-4 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-lg bg-primary">
-              <Gem className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">Cockpit AI</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-zinc-300"
-            onClick={() => setIsMobileMenuOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
-        </header>
-
-        <main className="flex-1 overflow-auto p-4 md:p-8">
-          <div className="max-w-7xl mx-auto animate-fade-in">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      <main className="min-w-0 flex-1">
+        <div className="mx-auto max-w-6xl px-4 py-8 animate-in fade-in duration-500 sm:px-6 md:px-10 md:py-12">
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 }

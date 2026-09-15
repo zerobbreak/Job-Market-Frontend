@@ -1,111 +1,37 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { useReactToPrint } from "react-to-print";
+import { useRef } from "react";
+import { Link } from "@tanstack/react-router";
+import { useReactToPrint } from "@/lib/react-to-print";
 import {
-  Sparkles,
-  FileText,
+  Check,
   Download,
-  Mail,
-  MapPin,
-  Linkedin,
   Github,
   Globe,
-  Loader2,
+  Linkedin,
+  Mail,
+  MapPin,
+  Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProfileData } from "@/api/types";
-import { cvService } from "@/api/services";
 import { useCVStore } from "@/stores/cvStore";
-
-/** Mock suggested change */
-const MOCK_SUGGESTED_CHANGE = {
-  section: "SUMMARY",
-  from: "Cloud Infrastructure",
-  to: "High-Concurrency Distributed Architectures",
-};
+import { cn } from "@/lib/utils";
 
 interface CVEditorViewProps {
   profile: ProfileData | null;
 }
 
-function RegenerateButton({ navigate }: { navigate: () => void }) {
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const { updatePersonalInfo } = useCVStore();
-
-  const handleRegenerate = async () => {
-    try {
-      setIsRegenerating(true);
-
-      const data = await cvService.regenerate();
-
-      if (data.success) {
-        // Update CV store with optimized summary if available
-        if (data.optimized_cv) {
-          // Extract summary from optimized CV
-          const summaryMatch =
-            data.optimized_cv.match(
-              /##\s*SUMMARY\s*\n([^\n]+(?:\n[^\n]+)*?)(?=\n##|\n\n\n|$)/i,
-            ) ||
-            data.optimized_cv.match(
-              /##\s*PROFESSIONAL\s+SUMMARY\s*\n([^\n]+(?:\n[^\n]+)*?)(?=\n##|\n\n\n|$)/i,
-            );
-          if (summaryMatch) {
-            const optimizedSummary = summaryMatch[1].trim();
-            updatePersonalInfo({ summary: optimizedSummary });
-          }
-        }
-
-        // Show success message
-        const message =
-          data.message ||
-          `Injected ${data.keyword_matches?.length || 0} keywords and improved ATS score to ${data.ats_score || "N/A"}.`;
-
-        alert(`CV optimized successfully!\n\n${message}`);
-
-        // Navigate to CV editor to see changes
-        navigate();
-      } else {
-        throw new Error(data.error || "Unknown error");
-      }
-    } catch (error: any) {
-      console.error("Error regenerating CV:", error);
-      alert(`Error: ${error.message || "Failed to regenerate CV"}`);
-    } finally {
-      setIsRegenerating(false);
-    }
-  };
-
-  return (
-    <Button
-      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
-      onClick={handleRegenerate}
-      disabled={isRegenerating}
-    >
-      {isRegenerating ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Regenerating...
-        </>
-      ) : (
-        "Regenerate with AI"
-      )}
-    </Button>
-  );
-}
+const cardClass =
+  "rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
 
 export function CVEditorView({ profile }: CVEditorViewProps) {
-  const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
   const { data: cvData } = useCVStore();
-  const [subTab, setSubTab] = useState<"ai" | "original">("ai");
 
-  const name = cvData.personalInfo.fullName || profile?.name || "—";
+  const name = cvData.personalInfo.fullName || profile?.name || "Your name";
   const email = profile?.email || cvData.personalInfo.email || "";
   const phone = profile?.phone || cvData.personalInfo.phone || "";
   const location = profile?.location || cvData.personalInfo.address || "";
-  const jobTitle =
-    cvData.personalInfo.jobTitle || profile?.experience_level || "";
+  const jobTitle = cvData.personalInfo.jobTitle || profile?.experience_level || "";
   const summary =
     cvData.personalInfo.summary ||
     profile?.career_goals ||
@@ -118,210 +44,163 @@ export function CVEditorView({ profile }: CVEditorViewProps) {
   const github = cvData.personalInfo.github || "";
   const website = cvData.personalInfo.website || "";
 
-  const enhancedSummary =
-    subTab === "ai" && summary
-      ? summary.replace(
-          /cloud infrastructure|distributed systems/gi,
-          (m) => `**${m}**`,
-        )
-      : summary;
-
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `${name.replace(/\s+/g, "_")}_CV`,
   });
 
+  const checklist = [
+    { label: "Email and phone number", done: !!email && !!phone },
+    { label: "Where you are based", done: !!location },
+    { label: "A short summary", done: !!summary },
+    { label: "At least five skills", done: skills.length >= 5 },
+    { label: "LinkedIn or portfolio link", done: !!(linkedin || website || github) },
+  ];
+  const doneCount = checklist.filter((item) => item.done).length;
+
+  const contactLink = "flex items-center gap-1.5 transition-colors hover:text-neutral-900";
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-xl font-bold text-white">
-          AI-Enhanced Document Editor
-        </h2>
-        <div className="flex items-center gap-3">
-          <Tabs
-            value={subTab}
-            onValueChange={(v) => setSubTab(v as "ai" | "original")}
-          >
-            <TabsList className="bg-card/50 border border-border p-1 h-11 rounded-lg backdrop-blur-sm">
-              <TabsTrigger
-                value="ai"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-4 font-medium transition-all h-full"
-              >
-                AI Enhanced
-              </TabsTrigger>
-              <TabsTrigger
-                value="original"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-4 text-muted-foreground font-medium transition-all h-full"
-              >
-                Original
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button
-            onClick={() => handlePrint?.()}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 h-11 px-6 rounded-lg"
-          >
-            <Download className="h-4 w-4" />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-medium text-neutral-900">Your CV</h2>
+          <p className="mt-0.5 text-sm text-neutral-500 text-pretty">
+            Built from your profile. Export it as it is, or open the editor to
+            change sections and layout.
+          </p>
+        </div>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <Button variant="outline" asChild>
+            <Link to="/cv-editor">Open editor</Link>
+          </Button>
+          <Button onClick={() => handlePrint?.()}>
+            <Download />
             Export PDF
           </Button>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* CV display */}
-        <div className="lg:col-span-2">
-          <div className="glass-panel border-border/50 rounded-3xl overflow-hidden relative shadow-2xl">
-            <div className="p-8 md:p-12">
-              <div ref={printRef} className="print:bg-white print:text-black">
-                <h1 className="text-3xl md:text-5xl font-bold text-white print:text-black uppercase tracking-tight mb-2">
-                  {name}
-                </h1>
-                <p className="text-primary print:text-blue-700 font-semibold uppercase tracking-wide text-sm md:text-base mb-6">
-                  {jobTitle || "Professional"}
-                </p>
-                <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground print:text-gray-600 mb-10">
-                  {location && (
-                    <span className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 shrink-0" />
-                      {location}
-                    </span>
-                  )}
-                  {email && (
-                    <span className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 shrink-0" />
-                      {email}
-                    </span>
-                  )}
-                  {phone && (
-                    <span className="flex items-center gap-2">{phone}</span>
-                  )}
-                  {linkedin && (
-                    <a
-                      href={linkedin}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 hover:text-primary transition-colors"
-                    >
-                      <Linkedin className="h-4 w-4" />
-                      LinkedIn
-                    </a>
-                  )}
-                  {github && (
-                    <a
-                      href={github}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 hover:text-primary transition-colors"
-                    >
-                      <Github className="h-4 w-4" />
-                      GitHub
-                    </a>
-                  )}
-                  {website && (
-                    <a
-                      href={website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 hover:text-primary transition-colors"
-                    >
-                      <Globe className="h-4 w-4" />
-                      Portfolio
-                    </a>
-                  )}
-                </div>
-                <div className="mb-10">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span className="w-8 h-px bg-border/50"></span>
-                    Strategic Profile
-                  </h3>
-                  <p className="text-base text-zinc-300 print:text-gray-800 leading-relaxed whitespace-pre-wrap">
-                    {enhancedSummary ? (
-                      <>
-                        {enhancedSummary
-                          .split(/\*\*(.*?)\*\*/g)
-                          .map((part, i) =>
-                            i % 2 === 1 ? (
-                              <span
-                                key={i}
-                                className="text-primary print:text-blue-700 font-bold bg-primary/10 px-1 rounded"
-                              >
-                                {part}
-                              </span>
-                            ) : (
-                              <span key={i}>{part}</span>
-                            ),
-                          )}
-                      </>
-                    ) : (
-                      "No summary provided. Please add one in the CV Editor."
-                    )}
-                  </p>
-                </div>
-                {skills.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2 mt-8">
-                      <span className="w-8 h-px bg-border/50"></span>
-                      Core Skills
-                    </h3>
-                    <div className="flex flex-wrap gap-2.5">
-                      {skills.map((s, i) => (
-                        <span
-                          key={i}
-                          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/5 text-zinc-300 border border-white/5 print:bg-gray-100 print:text-gray-800 print:border-gray-200"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+        <div className="rounded-2xl border border-neutral-200 bg-[#FAFAF9] p-2 sm:p-3">
+          <div
+            ref={printRef}
+            className="rounded-xl border border-neutral-200 bg-white p-8 text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-12 print:rounded-none print:border-0 print:shadow-none"
+          >
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{name}</h1>
+            {jobTitle && <p className="mt-1 text-lg text-neutral-500">{jobTitle}</p>}
+
+            <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-neutral-600">
+              {location && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-neutral-400" />
+                  {location}
+                </span>
+              )}
+              {email && (
+                <span className="flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-neutral-400" />
+                  {email}
+                </span>
+              )}
+              {phone && (
+                <span className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-neutral-400" />
+                  {phone}
+                </span>
+              )}
+              {linkedin && (
+                <a href={linkedin} target="_blank" rel="noopener noreferrer" className={contactLink}>
+                  <Linkedin className="h-3.5 w-3.5 text-neutral-400" />
+                  LinkedIn
+                </a>
+              )}
+              {github && (
+                <a href={github} target="_blank" rel="noopener noreferrer" className={contactLink}>
+                  <Github className="h-3.5 w-3.5 text-neutral-400" />
+                  GitHub
+                </a>
+              )}
+              {website && (
+                <a href={website} target="_blank" rel="noopener noreferrer" className={contactLink}>
+                  <Globe className="h-3.5 w-3.5 text-neutral-400" />
+                  Portfolio
+                </a>
+              )}
             </div>
+
+            <section className="mt-8 border-t border-neutral-100 pt-6">
+              <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-400">
+                Summary
+              </h2>
+              {summary ? (
+                <p className="mt-3 whitespace-pre-wrap leading-relaxed text-neutral-700">
+                  {summary}
+                </p>
+              ) : (
+                <p className="mt-3 text-neutral-400 print:hidden">
+                  Add a short summary on your profile so employers know what
+                  you&apos;re after.
+                </p>
+              )}
+            </section>
+
+            {skills.length > 0 && (
+              <section className="mt-8 border-t border-neutral-100 pt-6">
+                <h2 className="text-xs font-medium uppercase tracking-wider text-neutral-400">
+                  Skills
+                </h2>
+                <ul className="mt-3 flex flex-wrap gap-1.5">
+                  {skills.map((skill, i) => (
+                    <li
+                      key={`${skill}-${i}`}
+                      className="rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-sm text-neutral-700"
+                    >
+                      {skill}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         </div>
 
-        {/* Right panels */}
-        <div className="space-y-6">
-          <div className="glass-card rounded-3xl p-6 border-transparent">
-            <h3 className="text-base font-semibold text-white flex items-center gap-2 mb-3">
-              <div className="p-2 rounded-xl bg-accent/20">
-                <Sparkles className="h-5 w-5 text-accent" />
-              </div>
-              Smart Improvements
-            </h3>
-            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              We&apos;ve injected{" "}
-              <strong className="text-white font-semibold">12 keywords</strong>{" "}
-              and reframed your experience to match 2025 Principal Engineer
-              hiring trends.
-            </p>
-            <RegenerateButton navigate={() => navigate({ to: "/cv-editor" })} />
+        <aside className={cn(cardClass, "p-5 lg:sticky lg:top-8")}>
+          <div className="flex items-baseline justify-between gap-4">
+            <h3 className="font-medium text-neutral-900">Before you send it</h3>
+            <span className="text-sm tabular-nums text-neutral-500">
+              {doneCount}/{checklist.length}
+            </span>
           </div>
-          <div className="glass-card rounded-3xl p-6 border-transparent">
-            <h3 className="text-base font-semibold text-white flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-xl bg-primary/20">
-                <FileText className="h-5 w-5 text-primary" />
-              </div>
-              Suggested Changes
-            </h3>
-            <div className="space-y-4 text-sm mt-2">
-              <p className="text-muted-foreground leading-relaxed p-4 rounded-2xl bg-white/5 border border-white/5">
-                <span className="font-semibold text-white uppercase tracking-wider text-xs block mb-2">
-                  {MOCK_SUGGESTED_CHANGE.section}
+          <ul className="mt-4 space-y-3">
+            {checklist.map((item) => (
+              <li key={item.label} className="flex items-center gap-2.5 text-sm">
+                <span
+                  className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                    item.done ? "bg-emerald-50 text-emerald-700" : "border border-neutral-300",
+                  )}
+                >
+                  {item.done && <Check className="h-3 w-3" strokeWidth={2.5} />}
                 </span>
-                Reframed from{" "}
-                <span className="line-through opacity-70">
-                  &ldquo;{MOCK_SUGGESTED_CHANGE.from}&rdquo;
-                </span>{" "}
-                to{" "}
-                <span className="text-accent font-medium">
-                  &ldquo;{MOCK_SUGGESTED_CHANGE.to}&rdquo;
+                <span
+                  className={
+                    item.done
+                      ? "text-neutral-500 line-through decoration-neutral-300"
+                      : "text-neutral-900"
+                  }
+                >
+                  {item.label}
                 </span>
-                .
-              </p>
-            </div>
-          </div>
-        </div>
+              </li>
+            ))}
+          </ul>
+          {doneCount < checklist.length && (
+            <Button variant="outline" size="sm" asChild className="mt-5 w-full">
+              <Link to="/profile">Fill in the gaps</Link>
+            </Button>
+          )}
+        </aside>
       </div>
     </div>
   );

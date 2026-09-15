@@ -1,432 +1,258 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import {
-  TrendingUp,
-  Briefcase,
-  Users,
-  MapPin,
-  Building2,
-  Sparkles,
-  BrainCircuit,
-  Laptop,
-} from "lucide-react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-} from "recharts";
-// Data sources
-const jobVolumeData = [
-  { name: "Jan", tech: 400, design: 240, product: 240 },
-  { name: "Feb", tech: 300, design: 139, product: 221 },
-  { name: "Mar", tech: 200, design: 980, product: 229 },
-  { name: "Apr", tech: 278, design: 390, product: 200 },
-  { name: "May", tech: 189, design: 480, product: 218 },
-  { name: "Jun", tech: 239, design: 380, product: 250 },
-  { name: "Jul", tech: 349, design: 430, product: 210 },
-];
-
-const marketPositionData = [
-  { subject: "Cloud Tech", A: 120, B: 110, fullMark: 150 },
-  { subject: "Frontend", A: 98, B: 130, fullMark: 150 },
-  { subject: "Backend", A: 86, B: 130, fullMark: 150 },
-  { subject: "System Design", A: 99, B: 100, fullMark: 150 },
-  { subject: "Algorithms", A: 85, B: 90, fullMark: 150 },
-  { subject: "Communication", A: 65, B: 85, fullMark: 150 },
-];
-
-const inDemandSkills = [
-  { skill: "React / Next.js", value: 95, color: "bg-blue-500" },
-  { skill: "TypeScript", value: 88, color: "bg-blue-400" },
-  { skill: "Node.js", value: 82, color: "bg-emerald-500" },
-  { skill: "AWS / Cloud", value: 75, color: "bg-orange-500" },
-  { skill: "Python", value: 65, color: "bg-purple-500" },
-];
-
-const topCompanies = [
-  {
-    name: "Stripe",
-    role: "Software Engineer",
-    openRoles: 142,
-    icon: Briefcase,
-  },
-  { name: "Vercel", role: "Frontend Developer", openRoles: 89, icon: Laptop },
-  { name: "OpenAI", role: "AI Engineer", openRoles: 56, icon: BrainCircuit },
-  { name: "Monzo", role: "Backend Engineer", openRoles: 43, icon: Building2 },
-];
+import { useMemo } from "react";
+import type { ReactNode } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Check, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { profileQueryOptions } from "@/api/queries/options";
+import { useJobMatching } from "@/hooks/useJobMatching";
+import { useMatchedJobsCache } from "@/hooks/useMatchedJobsCache";
+import type { JobFeedCardMatch } from "@/components/matched-jobs/JobFeedCard";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/market-insights")({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(profileQueryOptions());
+  },
   component: MarketInsights,
 });
 
+type Count = { label: string; count: number };
+
+/** Case-insensitive tally of values, most common first. */
+function topCounts(values: string[], limit: number): Count[] {
+  const counts = new Map<string, Count>();
+  for (const raw of values) {
+    const label = raw.trim();
+    if (!label) continue;
+    const key = label.toLowerCase();
+    const entry = counts.get(key);
+    if (entry) entry.count += 1;
+    else counts.set(key, { label, count: 1 });
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, limit);
+}
+
+const cardClass =
+  "rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+
+function Panel({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn(cardClass, "p-5 sm:p-6", className)}>
+      <h2 className="font-medium text-neutral-900">{title}</h2>
+      <p className="mb-5 mt-0.5 text-sm text-neutral-500 text-pretty">{description}</p>
+      {children}
+    </section>
+  );
+}
+
+function BarList({
+  items,
+  total,
+  isHighlighted,
+}: {
+  items: Count[];
+  total: number;
+  isHighlighted?: (label: string) => boolean;
+}) {
+  const max = Math.max(1, ...items.map((i) => i.count));
+  return (
+    <ul className="space-y-3.5">
+      {items.map((item) => {
+        const highlighted = isHighlighted?.(item.label) ?? false;
+        return (
+          <li key={item.label}>
+            <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+              <span className="flex min-w-0 items-center gap-1.5 text-neutral-900">
+                <span className="truncate">{item.label}</span>
+                {highlighted && (
+                  <Check
+                    className="h-3.5 w-3.5 shrink-0 text-emerald-600"
+                    aria-label="On your CV"
+                  />
+                )}
+              </span>
+              <span className="shrink-0 tabular-nums text-neutral-500">
+                {item.count} of {total}
+              </span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-[width] duration-700",
+                  highlighted ? "bg-emerald-500" : "bg-neutral-900",
+                )}
+                style={{ width: `${(item.count / max) * 100}%` }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function MarketInsights() {
-  const [activeTab, setActiveTab] = useState("all");
+  const { data: profile } = useSuspenseQuery(profileQueryOptions());
+  const { matchedJobs, setMatchedJobs, loading, cacheLoading, findMatches, location } =
+    useJobMatching();
+  useMatchedJobsCache(matchedJobs, location, setMatchedJobs);
+
+  const busy = loading || cacheLoading;
+  const matches = matchedJobs as JobFeedCardMatch[];
+
+  const insights = useMemo(() => {
+    const jobs = matches.map((m) => m.job);
+    const total = jobs.length;
+    const remote = jobs.filter((j) => /remote/i.test(j.location || "")).length;
+    const averageFit = total
+      ? Math.round(matches.reduce((sum, m) => sum + m.match_score, 0) / total)
+      : 0;
+    return {
+      total,
+      averageFit,
+      remoteShare: total ? Math.round((remote / total) * 100) : 0,
+      skills: topCounts(jobs.flatMap((j) => j.skills ?? []), 8),
+      companies: topCounts(jobs.map((j) => j.company || ""), 6),
+      locations: topCounts(jobs.map((j) => (j.location || "").split(",")[0]), 6),
+    };
+  }, [matches]);
+
+  const mySkills = useMemo(
+    () => new Set((profile?.skills ?? []).map((s) => s.trim().toLowerCase())),
+    [profile],
+  );
+  const hasSkill = (label: string) => mySkills.has(label.toLowerCase());
+  const skillsToAdd = insights.skills.filter((s) => !hasSkill(s.label)).slice(0, 3);
 
   return (
-    <div className="min-h-screen text-slate-100 p-6 md:p-8 space-y-8 animate-fade-in max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-8 pb-10">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-            <TrendingUp className="h-8 w-8 text-blue-400" />
-            Market Insights & Trends
+          <p className="mb-2 text-sm text-neutral-500">Market insights</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
+            What employers are asking for{" "}
+            <span className="text-neutral-400">in the jobs that fit you</span>
           </h1>
-          <p className="text-slate-400 mt-2">
-            Real-time analysis of the current tech job market
+          <p className="mt-2 max-w-xl text-neutral-600 text-pretty">
+            {insights.total > 0
+              ? `Based on the ${insights.total} roles we matched to your CV.`
+              : "Built from the roles we match to your CV."}
           </p>
         </div>
-        <div className="flex bg-slate-800/50 p-1 rounded-xl border border-slate-700/50 backdrop-blur-sm">
-          {["all", "engineering", "design", "product"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
-                activeTab === tab
-                  ? "bg-blue-600/20 text-blue-400 shadow-sm border border-blue-500/30"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
-              }`}
-            >
-              {tab}
-            </button>
+        <Button
+          variant="outline"
+          onClick={() => findMatches(true)}
+          disabled={busy || !profile}
+          className="self-start sm:self-auto"
+        >
+          <RefreshCw className={cn(loading && "animate-spin")} />
+          {loading ? "Searching…" : "Search again"}
+        </Button>
+      </header>
+
+      {busy && insights.total === 0 ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div key={i} className={cn(cardClass, "space-y-4 p-6")}>
+              <div className="h-4 w-1/3 animate-pulse rounded bg-neutral-100" />
+              {[0, 1, 2, 3].map((j) => (
+                <div key={j} className="h-2 animate-pulse rounded-full bg-neutral-100" />
+              ))}
+            </div>
           ))}
         </div>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-linear-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20">
-              <Briefcase className="h-5 w-5" />
-            </div>
-            <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" /> +12%
-            </span>
-          </div>
-          <h3 className="text-3xl font-bold text-white mb-1">14,233</h3>
-          <p className="text-sm text-slate-400">Active Job Listings</p>
+      ) : insights.total === 0 ? (
+        <div className="rounded-2xl border border-dashed border-neutral-300 bg-white px-6 py-16 text-center">
+          <p className="font-medium text-neutral-900">No matches to learn from yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500 text-pretty">
+            {profile
+              ? "Once we find jobs that fit your CV, you'll see which skills and employers come up most."
+              : "Upload your CV first, then we'll show you what the jobs that fit you have in common."}
+          </p>
+          <Button asChild className="mt-6">
+            <Link to="/dashboard">Go to your job feed</Link>
+          </Button>
         </div>
-
-        <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-linear-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-purple-500/10 rounded-xl text-purple-400 border border-purple-500/20">
-              <Users className="h-5 w-5" />
-            </div>
-            <span className="text-xs font-medium text-red-400 bg-red-400/10 px-2 py-1 rounded-full flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 rotate-180" /> -2%
-            </span>
-          </div>
-          <h3 className="text-3xl font-bold text-white mb-1">2.4m</h3>
-          <p className="text-sm text-slate-400">Active Candidates</p>
-        </div>
-
-        <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-linear-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
-              <MapPin className="h-5 w-5" />
-            </div>
-            <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" /> +8%
-            </span>
-          </div>
-          <h3 className="text-3xl font-bold text-white mb-1">42%</h3>
-          <p className="text-sm text-slate-400">Remote Opportunities</p>
-        </div>
-
-        <div className="glass-card rounded-2xl p-6 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-linear-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-orange-500/10 rounded-xl text-orange-400 border border-orange-500/20">
-              <Building2 className="h-5 w-5" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-white mb-1">£78k</h3>
-          <p className="text-sm text-slate-400">Average Salary (Tech)</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Charts Area */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Job Volume Chart */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-700/50">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  Job Volume Trends
-                </h3>
-                <p className="text-sm text-slate-400">
-                  Monthly breakdown by sector
+      ) : (
+        <>
+          <section className="grid gap-3 sm:grid-cols-3">
+            {[
+              ["Roles analysed", insights.total],
+              ["Average fit", `${insights.averageFit}%`],
+              ["Remote roles", `${insights.remoteShare}%`],
+            ].map(([label, value]) => (
+              <div key={label} className={cn(cardClass, "p-5")}>
+                <p className="text-sm text-neutral-500">{label}</p>
+                <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">
+                  {value}
                 </p>
               </div>
-            </div>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={jobVolumeData}
-                  margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#334155"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="name"
-                    stroke="#94a3b8"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="#94a3b8"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      borderColor: "#334155",
-                      borderRadius: "8px",
-                    }}
-                    itemStyle={{ color: "#f8fafc" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="tech"
-                    stroke="#3b82f6"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: "#3b82f6", strokeWidth: 0 }}
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="design"
-                    stroke="#a855f7"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: "#a855f7", strokeWidth: 0 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="product"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+            ))}
+          </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Top Hiring Companies */}
-            <div className="glass-card rounded-2xl p-6 border border-slate-700/50">
-              <h3 className="text-lg font-semibold text-white mb-6">
-                Top Hiring Companies
-              </h3>
-              <div className="space-y-4">
-                {topCompanies.map((company, i) => {
-                  const Icon = company.icon;
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer border border-transparent hover:border-slate-700/50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-slate-200 text-sm">
-                            {company.name}
-                          </h4>
-                          <p className="text-xs text-slate-400">
-                            {company.role}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-blue-400">
-                          {company.openRoles}
-                        </div>
-                        <div className="text-[10px] text-slate-500 uppercase">
-                          Open
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* In-Demand Skills */}
-            <div className="glass-card rounded-2xl p-6 border border-slate-700/50">
-              <h3 className="text-lg font-semibold text-white mb-6">
-                In-Demand Skills
-              </h3>
-              <div className="space-y-6">
-                {inDemandSkills.map((skill, i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium text-slate-300">
-                        {skill.skill}
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <Panel
+              title="Skills in demand"
+              description="How often each skill appears in your matches. Ticked skills are already on your CV."
+            >
+              {insights.skills.length > 0 ? (
+                <>
+                  <BarList
+                    items={insights.skills}
+                    total={insights.total}
+                    isHighlighted={hasSkill}
+                  />
+                  {skillsToAdd.length > 0 && (
+                    <p className="mt-6 rounded-xl bg-[#FAFAF9] px-4 py-3 text-sm text-neutral-600 text-pretty">
+                      Worth adding if you have them:{" "}
+                      <span className="text-neutral-900">
+                        {skillsToAdd.map((s) => s.label).join(", ")}
                       </span>
-                      <span className="text-slate-400">
-                        {skill.value}% match rate
-                      </span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${skill.color} relative`}
-                        style={{ width: `${skill.value}%` }}
+                      .{" "}
+                      <Link
+                        to="/profile"
+                        className="text-neutral-900 underline underline-offset-4"
                       >
-                        <div className="absolute inset-0 bg-white/20 w-full animate-[shimmer_2s_infinite]"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar Analytics */}
-        <div className="space-y-6">
-          {/* Your Market Position */}
-          <div className="glass-card rounded-2xl p-6 border border-slate-700/50">
-            <h3 className="text-lg font-semibold text-white mb-2">
-              Your Market Position
-            </h3>
-            <p className="text-sm text-slate-400 mb-6">
-              Compared to average placed candidates
-            </p>
-            <div className="h-[250px] w-full mt-4 flex justify-center items-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart
-                  cx="50%"
-                  cy="50%"
-                  outerRadius="70%"
-                  data={marketPositionData}
-                >
-                  <PolarGrid stroke="#334155" />
-                  <PolarAngleAxis
-                    dataKey="subject"
-                    tick={{ fill: "#94a3b8", fontSize: 11 }}
-                  />
-                  <PolarRadiusAxis
-                    angle={30}
-                    domain={[0, 150]}
-                    tick={false}
-                    axisLine={false}
-                  />
-                  <Radar
-                    name="You"
-                    dataKey="A"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
-                    fillOpacity={0.4}
-                  />
-                  <Radar
-                    name="Market Avg"
-                    dataKey="B"
-                    stroke="#94a3b8"
-                    fill="#94a3b8"
-                    fillOpacity={0.1}
-                  />
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      borderColor: "#334155",
-                      borderRadius: "8px",
-                    }}
-                    itemStyle={{ color: "#f8fafc" }}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 mt-4 border-t border-slate-700/50 pt-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span className="text-xs text-slate-300">Your Score</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-slate-400"></div>
-                <span className="text-xs text-slate-300">Market Avg</span>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Talent Analysis Widget */}
-          <div className="rounded-2xl p-px bg-linear-to-b from-blue-500/50 to-purple-600/50">
-            <div className="bg-slate-900/90 backdrop-blur-xl h-full w-full rounded-[15px] p-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Sparkles className="w-24 h-24" />
-              </div>
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <h3 className="text-lg font-bold text-white">
-                  AI Talent Analysis
-                </h3>
-              </div>
-
-              <div className="space-y-4 relative z-10">
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  Your profile ranks in the{" "}
-                  <span className="font-bold text-blue-400">top 15%</span> for
-                  Frontend roles. Your strong React and TypeScript scores
-                  compensate for slightly lower System Design marks.
+                        Update your profile
+                      </Link>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-neutral-500">
+                  These listings didn&apos;t include skill tags.
                 </p>
+              )}
+            </Panel>
 
-                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-4">
-                  <div className="text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">
-                    Recommended Salary Range
-                  </div>
-                  <div className="text-2xl font-bold bg-linear-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-                    £65k - £85k
-                  </div>
-                  <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> +15% above your current
-                  </div>
-                </div>
-
-                <div className="space-y-2 pt-2">
-                  <div className="text-xs font-medium text-slate-400">
-                    Actionable Advice:
-                  </div>
-                  <ul className="space-y-2 text-sm text-slate-300">
-                    <li className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
-                      Focus next upskilling on <strong>System Design</strong> to
-                      unlock Senior roles.
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0"></div>
-                      Add quantifiable impact to your "Monzo" experience block.
-                    </li>
-                  </ul>
-                </div>
-              </div>
+            <div className="space-y-4">
+              <Panel
+                title="Who's hiring"
+                description="Employers with the most roles in your matches."
+              >
+                <BarList items={insights.companies} total={insights.total} />
+              </Panel>
+              <Panel
+                title="Where the roles are"
+                description="Cities and regions that come up most."
+              >
+                <BarList items={insights.locations} total={insights.total} />
+              </Panel>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,14 +1,5 @@
-import {
-  Building2,
-  Cloud,
-  Rocket,
-  Shield,
-  TrendingUp,
-  ExternalLink,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { ArrowUpRight, MapPin } from "lucide-react";
+import { FitBadge } from "@/components/ui/fit-badge";
 
 export interface JobFeedCardJob {
   id: string;
@@ -26,97 +17,88 @@ export interface JobFeedCardMatch {
   match_reasons: string[];
 }
 
-const ICONS = [Building2, Cloud, Rocket, Shield, TrendingUp] as const;
-
-function getMatchBadgeClass(score: number) {
-  if (score >= 90)
-    return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-  if (score >= 85) return "bg-green-500/20 text-green-400 border-green-500/30";
-  if (score >= 80) return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-  if (score >= 70) return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-  return "bg-zinc-500/20 text-zinc-400 border-zinc-500/30";
-}
-
-function getIcon(idx: number) {
-  return ICONS[idx % ICONS.length];
-}
-
 export function JobFeedCard({
   match,
-  index,
   onApply,
 }: {
   match: JobFeedCardMatch;
-  index: number;
+  index?: number;
   onApply?: (job: JobFeedCardJob) => void;
 }) {
-  const Icon = getIcon(index);
-  const snippet = match.job.description?.slice(0, 120)?.trim();
-  const tags = (match.job.skills ?? []).slice(0, 2).map((s) => s.toUpperCase());
+  const { job } = match;
+  const reason = match.match_reasons?.[0];
+  const snippet = job.description?.replace(/\s+/g, " ").slice(0, 140).trim();
+  const skills = (job.skills ?? []).slice(0, 3);
+  const hasUrl = !!job.url && /^https?:\/\//.test(job.url);
 
   return (
-    <Card className="group border-border/50 bg-card/40 backdrop-blur-sm hover:border-primary/40 hover:bg-card/60 transition-all overflow-hidden">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="p-2.5 rounded-xl bg-white/5 text-accent">
-            <Icon className="h-5 w-5" />
-          </div>
-          <Badge
-            className={cn(
-              "font-bold text-[10px] uppercase tracking-wider shrink-0",
-              getMatchBadgeClass(match.match_score),
-            )}
-          >
-            {match.match_score}% Match
-          </Badge>
+    <div className="flex h-full flex-col rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.1)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h3 className="font-medium text-neutral-900 line-clamp-2">{job.title}</h3>
+          <p className="mt-0.5 truncate text-sm text-neutral-500">{job.company}</p>
         </div>
-        <h3 className="text-base font-semibold text-white mb-1.5 line-clamp-2">
-          {match.job.title}
-        </h3>
-        <p className="text-sm text-muted-foreground mb-2 font-medium">
-          {match.job.company} <span className="text-border mx-1">•</span>{" "}
-          {match.job.location}
+        <FitBadge score={match.match_score} />
+      </div>
+
+      {job.location && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
+          <MapPin className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{job.location}</span>
         </p>
-        {snippet && (
-          <p className="text-sm text-zinc-400 line-clamp-2 mb-4 leading-relaxed">
+      )}
+
+      {reason ? (
+        <p className="mt-3 text-sm leading-relaxed text-neutral-600 line-clamp-2">{reason}</p>
+      ) : (
+        snippet && (
+          <p className="mt-3 text-sm leading-relaxed text-neutral-600 line-clamp-2">
             {snippet}&hellip;
           </p>
-        )}
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag, i) => (
+        )
+      )}
+
+      {skills.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {skills.map((skill) => (
             <span
-              key={i}
-              className="px-2 py-0.5 rounded-md text-xs font-medium bg-white/5 text-zinc-400"
+              key={skill}
+              className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-700"
             >
-              {tag}
+              {skill}
             </span>
           ))}
         </div>
-        <div className="mt-4 flex gap-2">
-          {match.job.url && /^https?:\/\//.test(match.job.url) && (
-            <a
-              href={match.job.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border border-border bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-medium transition-colors"
-            >
-              View details
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          )}
+      )}
+
+      {(onApply || hasUrl) && (
+        <div className="mt-auto flex items-center gap-1 pt-4">
           {onApply && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onApply(match.job);
+                onApply(job);
               }}
-              className="flex-1 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-lg shadow-primary/20"
+              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-neutral-700 active:scale-[0.98]"
             >
-              Analyze Fit
+              Tailor and apply
             </button>
           )}
+          {hasUrl && (
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm text-neutral-500 transition-colors hover:text-neutral-900"
+            >
+              View listing
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

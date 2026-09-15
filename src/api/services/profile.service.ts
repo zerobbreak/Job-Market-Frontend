@@ -4,11 +4,14 @@ import type { ProfileData } from "../types";
 
 const getStructuredFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<ProfileData | null> => {
-    const data = await backendJson<{ success: boolean; profile: ProfileData }>(
-      "/profiles/me/structured",
-      { method: "GET" },
-    );
-    return data.success ? data.profile : null;
+    // The backend returns the profile fields flat ({ success, name, skills, ... }),
+    // not nested under `profile`. A user with no profile gets all-empty defaults.
+    const { success, ...profile } = await backendJson<
+      { success: boolean } & ProfileData
+    >("/profiles/me/structured", { method: "GET" });
+    const hasProfile = Boolean(profile.name || profile.email || profile.skills?.length);
+    // Never return undefined — TanStack Query rejects it as query data.
+    return success && hasProfile ? profile : null;
   },
 );
 

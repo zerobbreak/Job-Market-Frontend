@@ -50,7 +50,7 @@ export function ConfirmDialog({
             className={
               variant === "destructive"
                 ? "bg-destructive hover:bg-destructive/90"
-                : "bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                : "bg-neutral-900 hover:bg-neutral-700"
             }
           >
             {confirmText}

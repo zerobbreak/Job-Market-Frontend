@@ -162,7 +162,7 @@ export function ApplicationPreviewDialog({
                 size="sm"
                 onClick={onAutoApply}
                 disabled={isAutoApplying}
-                className={`border-purple-500 text-purple-600 hover:bg-purple-50 ${isAutoApplying ? "animate-pulse" : ""}`}
+                className={isAutoApplying ? "animate-pulse" : ""}
               >
                 {isAutoApplying ? (
                   <>
@@ -183,14 +183,14 @@ export function ApplicationPreviewDialog({
         <div className="flex-1 overflow-hidden">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full p-8">
-              <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
+              <Loader2 className="h-8 w-8 animate-spin text-neutral-400 mb-4" />
               <p className="text-lg font-medium text-gray-900 mb-2">
                 {phase || "Generating preview..."}
               </p>
               <div className="mt-4 w-full max-w-md">
-                <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                <div className="h-1.5 w-full bg-neutral-100 rounded-full overflow-hidden">
                   <div
-                    className="h-3 bg-linear-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out rounded-full"
+                    className="h-full bg-neutral-900 transition-all duration-300 ease-out rounded-full"
                     style={{
                       width: `${Math.max(0, Math.min(100, progress))}%`,
                     }}
@@ -200,7 +200,7 @@ export function ApplicationPreviewDialog({
                   <span className="text-muted-foreground">
                     {phase || "Processing..."}
                   </span>
-                  <span className="font-semibold text-blue-600">
+                  <span className="font-medium text-neutral-900 tabular-nums">
                     {Math.round(Math.max(0, Math.min(100, progress)))}%
                   </span>
                 </div>
@@ -210,7 +210,7 @@ export function ApplicationPreviewDialog({
                     <div
                       key={milestone}
                       className={`h-1 rounded-full transition-colors ${
-                        progress >= milestone ? "bg-blue-500" : "bg-gray-200"
+                        progress >= milestone ? "bg-neutral-900" : "bg-neutral-200"
                       }`}
                       title={`${milestone}%`}
                     />
@@ -309,7 +309,7 @@ export function ApplicationPreviewDialog({
                 <div className="border rounded-md bg-white h-[600px] w-full overflow-hidden relative">
                   {loading ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10">
-                      <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+                      <Loader2 className="w-8 h-8 text-neutral-400 animate-spin mb-4" />
                       <p className="text-lg font-medium text-gray-700">
                         Generating Cover Letter...
                       </p>
