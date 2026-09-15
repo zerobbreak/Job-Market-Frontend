@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
+import { UpdateAvailableNotice } from "@/components/layout/UpdateAvailableNotice";
 import { AuthProvider } from "@/context/AuthContext";
 import { getSessionUserFn } from "@/lib/auth";
 import type { RouterContext } from "@/router";
@@ -66,6 +67,7 @@ function RootComponent() {
           <ToastProvider>
             <Outlet />
             <ToastViewport />
+            <UpdateAvailableNotice />
           </ToastProvider>
         </AuthProvider>
         <ReactQueryDevtools initialIsOpen={false} />
